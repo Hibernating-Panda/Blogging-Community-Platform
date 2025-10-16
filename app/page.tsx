@@ -1,4 +1,5 @@
 import Image from "next/image";
+import UploadUserModal from "@/components/uploadbutton"
 
 export default function Home() {
   return (
@@ -7,6 +8,7 @@ export default function Home() {
       <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex justify-center items-center font-bold text-white text-[120px] font-sans">
         FUCK YOU
       </div>
+      <UploadUserModal />
     </div>
   );
 }
