@@ -1,0 +1,79 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /* ----------------- USERS ----------------- */
+    match /users/{userId} {
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isSignedIn() && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    /* ----------------- POSTS ----------------- */
+    match /posts/{postId} {
+      allow read: if true;
+
+      allow create: if isSignedIn()
+                    && request.resource.data.authorId == request.auth.uid
+                    && request.resource.data.categoryId is string;
+
+      allow update, delete: if isSignedIn()
+                            && resource.data.authorId == request.auth.uid;
+    }
+
+    /* ----------------- COMMENTS ----------------- */
+    match /posts/{postId}/comments/{commentId} {
+      allow read: if true;
+      allow create, update, delete: if isSignedIn()
+                                    && request.resource.data.authorId == request.auth.uid;
+    }
+
+    /* ----------------- CATEGORIES (read-only) ----------------- */
+    match /categories/{catId} {
+      allow read: if true;
+    }
+
+    /* ----------------- FAVORITES ----------------- */
+    match /favorites/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+
+      match /posts/{postId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+      }
+    }
+
+    /* ----------------- LIKES ----------------- */
+    match /likes/{postId} {
+      allow read: if true;
+
+      match /users/{userId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+      }
+    }
+
+    /* ----------------- HISTORY ----------------- */
+    match /history/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+
+      match /posts/{postId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+      }
+    }
+
+    /* ----------------- DRAFTS ----------------- */
+    match /drafts/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+
+      match /items/{draftId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+      }
+    }
+
+  }
+}

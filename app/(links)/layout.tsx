@@ -1,5 +1,7 @@
+"use client";
+import Protected from "@/components/Protected";
 import Sidebar from "@/components/sidebar";
-import Navbar from "@/components/navbar";
+import UserNavbar from "@/components/usernavbar";
 
 export default function Layout({
   children,
@@ -8,14 +10,19 @@ export default function Layout({
 }) {
   return (
     <div className="min-h-screen min-w-screen bg-white text-black">
+      <Protected>
       <div className="fixed top-0 left-0 right-0 h-16 bg-white border-b z-20">
-        <Navbar />
+        <UserNavbar />
       </div>
       <div className="flex pt-16 h-screen">
-        <div className="w-full overflow-auto">
+        <div className="w-1/6 h-full bg-white border-r">
+          <Sidebar />
+        </div>
+        <div className="w-5/6 overflow-y-auto">
           {children}
         </div>
       </div>
+      </Protected>
     </div>
   );
 }
