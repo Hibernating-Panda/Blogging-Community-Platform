@@ -116,7 +116,6 @@ export default function ProfilePage() {
 
     setSaving(false);
     setEditMode(false);
-    alert("Profile updated!");
   };
 
   if (loading) return <p className="text-center mt-10">Loading...</p>;
