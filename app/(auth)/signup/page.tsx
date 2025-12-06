@@ -5,6 +5,8 @@ import { auth } from "@/lib/firebase";
 import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { db } from "@/lib/firebase";
 import { doc, setDoc } from "firebase/firestore";
+import Image from "next/image";
+import Link from "next/link";
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
@@ -18,12 +20,14 @@ export default function SignupPage() {
   const [errorLength, setErrorLength] = useState<string | null>(null);
   const [errorPassword, setErrorPassword] = useState<string | null>(null);
   const [errorUsername, setErrorUsername] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const onSignup = async () => {
     setErrorEmail(null);
     setErrorLength(null);
     setErrorPassword(null);
     setErrorUsername(null);
+    setLoading(true);
 
     if (username.length < 3) {
       setErrorUsername("Username must be at least 3 characters long");
@@ -45,17 +49,8 @@ export default function SignupPage() {
       return;
     }
     
-    setErrorUsername(null);
-    setErrorEmail(null);
-    setErrorLength(null);
-    setErrorPassword(null);
-
     try {
       const userCred = await createUserWithEmailAndPassword(auth, email, password);
-
-      console.log("STEP 1 - Auth created:", userCred.user.uid);
-
-console.log("STEP 2 - Writing user profile...");
 
       // Save user profile
       await setDoc(doc(db, "users", userCred.user.uid), {
@@ -80,51 +75,64 @@ console.log("STEP 2 - Writing user profile...");
 
     } catch (err: any) {
       alert(err.message);
+      setLoading(false);
     }
   };
 
   return (
     <div className="flex items-center justify-center h-screen bg-white text-black">
-      <div className="w-full max-w-sm bg-white p-6 rounded-xl border shadow-md">
-        <h1 className="text-2xl font-bold mb-4 text-black">Create Account</h1>
+      <div className="w-full max-w-lg bg-[#D9D9D9] p-10 rounded-xl shadow-md flex items-center justify-center flex-col gap-4">
+        
+        <div className="w-full flex justify-start mb-[-12px]">
+          <Link
+            href="/"
+            className="p-2 rounded-full hover:bg-black/10 cursor-pointer"
+          >
+            <svg className="text-gray-600" height={20} width={20} fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 512"><path d="M9.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L77.3 256 214.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg>
+          </Link>
+        </div>
+
+        <Image src="/logo_with_background.svg" alt="Logo" width={100} height={100} className="h-32 w-32"/>
+
+        <h1 className="text-2xl cursor-default mt-2">Welcome to <span className="font-bold text-center bg-gradient-to-r from-[#282D38] to-[#C19858] bg-clip-text text-transparent">ResearcHub</span></h1>
 
         {errorUsername && (
-          <div className="text-red-500 text-sm mb-3 p-2 bg-red-50 rounded">
+          <div className="text-red-500 text-sm mb-[-20] px-4 self-start">
             {errorUsername}
           </div>
         )}
 
         <input
-          className="w-full p-2 border rounded mb-3 text-black"
+          className="w-full py-2 px-4 rounded text-black w-full bg-white rounded-3xl mt-2 focus:outline-none focus:ring-0"
           placeholder="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
         />
 
         {errorEmail && (
-          <div className="text-red-500 text-sm mb-3 p-2 bg-red-50 rounded">
+          <div className="text-red-500 text-sm mb-[-20] px-4 self-start">
             {errorEmail}
           </div>
         )}
 
         <input
-          className="w-full p-2 border rounded mb-3 text-black focus:outline-none focus:ring-0"
+          className="w-full py-2 px-4 rounded-3xl w-full text-black focus:outline-none focus:ring-0 bg-white mt-2"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
 
         {errorLength && (
-          <div className="text-red-500 text-sm mb-3 p-2 bg-red-50 rounded">
+          <div className="text-red-500 text-sm mb-[-20] px-4 self-start">
             {errorLength}
           </div>
         )}
 
         {/* PASSWORD FIELD */}
-        <div className="relative mb-4 items-center border justify-between flex rounded cursor-pointer">
+        <div className="relative items-center rounded-3xl justify-between flex w-full bg-white mt-2">
           <input
             type={showPass ? "text" : "password"}
-            className="w-full p-2 rounded text-black focus:outline-none focus:ring-0"
+            className="w-full py-2 px-4 text-black focus:outline-none focus:ring-0"
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -133,7 +141,7 @@ console.log("STEP 2 - Writing user profile...");
           <button
             type="button"
             onClick={() => setShowPass(!showPass)}
-            className="items-center p-2 cursor-pointer text-gray-600"
+            className="items-center p-2 cursor-pointer text-gray-600 hover:opacity-80"
           >
             {showPass ? (
               <svg fill="currentColor" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"><path d="M480-320q75 0 127.5-52.5T660-500q0-75-52.5-127.5T480-680q-75 0-127.5 52.5T300-500q0 75 52.5 127.5T480-320Zm0-72q-45 0-76.5-31.5T372-500q0-45 31.5-76.5T480-608q45 0 76.5 31.5T588-500q0 45-31.5 76.5T480-392Zm0 192q-146 0-266-81.5T40-500q54-137 174-218.5T480-800q146 0 266 81.5T920-500q-54 137-174 218.5T480-200Zm0-300Zm0 220q113 0 207.5-59.5T832-500q-50-101-144.5-160.5T480-720q-113 0-207.5 59.5T128-500q50 101 144.5 160.5T480-280Z"/></svg>
@@ -145,14 +153,15 @@ console.log("STEP 2 - Writing user profile...");
 
         {/* CONFIRM PASSWORD FIELD */}
         {errorPassword && (
-          <div className="text-red-500 text-sm mb-3 p-2 bg-red-50 rounded">
+          <div className="text-red-500 text-sm mb-[-20] px-4 self-start">
             {errorPassword}
           </div>
         )}
-        <div className="relative mb-4 items-center flex justify-between border rounded">
+
+        <div className="relative w-full items-center flex justify-between rounded-3xl bg-white mt-2">
           <input
             type={showConfirm ? "text" : "password"}
-            className="w-full rounded p-2 focus:outline-none focus:ring-0"
+            className="w-full px-4 py-2 text-black focus:outline-none focus:ring-0"
             placeholder="Confirm Password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
@@ -161,7 +170,7 @@ console.log("STEP 2 - Writing user profile...");
           <button
             type="button"
             onClick={() => setShowConfirm(!showConfirm)}
-            className=" text-gray-600 items-center p-2 cursor-pointer"
+            className=" text-gray-600 items-center p-2 cursor-pointer hover:opacity-80"
           >
             {showConfirm ? (
               <svg fill="currentColor" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"><path d="M480-320q75 0 127.5-52.5T660-500q0-75-52.5-127.5T480-680q-75 0-127.5 52.5T300-500q0 75 52.5 127.5T480-320Zm0-72q-45 0-76.5-31.5T372-500q0-45 31.5-76.5T480-608q45 0 76.5 31.5T588-500q0 45-31.5 76.5T480-392Zm0 192q-146 0-266-81.5T40-500q54-137 174-218.5T480-800q146 0 266 81.5T920-500q-54 137-174 218.5T480-200Zm0-300Zm0 220q113 0 207.5-59.5T832-500q-50-101-144.5-160.5T480-720q-113 0-207.5 59.5T128-500q50 101 144.5 160.5T480-280Z"/></svg>
@@ -173,10 +182,18 @@ console.log("STEP 2 - Writing user profile...");
 
         <button
           onClick={onSignup}
-          className="w-full bg-[#282D38] text-white p-2 rounded hover:bg-[#282D38] cursor-pointer"
+          disabled={loading}
+          className={`bg-[#282D38] text-white px-8 py-2 rounded-3xl hover:opacity-80 mt-2
+            ${loading ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}
+          `}
         >
-          Sign Up
+          {loading ? "Registering..." : "Register"}
         </button>
+
+
+        <div className="cursor-default">
+          Already have an account? <Link href="/login" className="underline text-blue-600 cursor-pointer hover:opacity-70">Login</Link>
+        </div>
       </div>
     </div>
   );
