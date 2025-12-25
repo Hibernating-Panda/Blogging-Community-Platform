@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb, adminAuth } from "@/lib/firebaseAdmin";
 
-export async function POST(req: NextRequest, { params }: any) {
+export async function POST(req: NextRequest, ctx: any) {
   try {
+    // MUST AWAIT PARAMS
+    const { id: postId } = await ctx.params;
+
     const token = req.headers.get("Authorization")?.split("Bearer ")[1];
-    if (!token) return NextResponse.json({ error: "No token" }, { status: 401 });
+    if (!token)
+      return NextResponse.json({ error: "No token" }, { status: 401 });
 
     const decoded = await adminAuth.verifyIdToken(token);
     const userId = decoded.uid;
-    const postId = params.id;
 
     const favRef = adminDb
       .collection("favorites")
@@ -18,15 +21,24 @@ export async function POST(req: NextRequest, { params }: any) {
 
     const snap = await favRef.get();
 
+    // REMOVE FAVORITE
     if (snap.exists) {
       await favRef.delete();
-      return NextResponse.json({ favorited: false });
-    } else {
-      await favRef.set({
-        favoritedAt: new Date(),
+      return NextResponse.json({
+        favorited: false,
+        favoritedAt: null,
       });
-      return NextResponse.json({ favorited: true });
     }
+
+    // ADD FAVORITE
+    const favoritedAt = new Date();
+    await favRef.set({ favoritedAt });
+
+    return NextResponse.json({
+      favorited: true,
+      favoritedAt,
+    });
+
   } catch (err: any) {
     console.error("Favorite API error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });

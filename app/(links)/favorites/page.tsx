@@ -9,7 +9,6 @@ import {
   getDocs,
 } from "firebase/firestore";
 import Link from "next/link";
-import Image from "next/image";
 import { useSearch } from "@/context/SearchContext";
 
 export default function FavoritesPage() {
@@ -18,16 +17,16 @@ export default function FavoritesPage() {
 
   const uid = auth.currentUser?.uid;
 
-  // ---------------------------------------
+  // -----------------------------
   // LOAD FAVORITES
-  // ---------------------------------------
+  // -----------------------------
   useEffect(() => {
     if (!uid) return;
 
     const loadFavorites = async () => {
       setLoading(true);
 
-      // Get list of postId that user favorited
+      // Get list of favorite post IDs
       const favSnap = await getDocs(collection(db, "favorites", uid, "posts"));
 
       const favPosts: any[] = [];
@@ -35,12 +34,18 @@ export default function FavoritesPage() {
       for (const fav of favSnap.docs) {
         const postId = fav.id;
 
-        // Fetch actual post data
+        const favData = fav.data(); // <-- contains favoritedAt
+
         const postSnap = await getDoc(doc(db, "posts", postId));
         if (postSnap.exists()) {
-          favPosts.push({ id: postId, ...postSnap.data() });
+          favPosts.push({
+            id: postId,
+            ...postSnap.data(),
+            favoritedAt: favData.favoritedAt || null,
+          });
         }
       }
+
 
       setFavorites(favPosts);
       setLoading(false);
@@ -50,18 +55,20 @@ export default function FavoritesPage() {
   }, [uid]);
 
   const { searchText, selectedCategory } = useSearch();
+
+  const filtered = favorites.filter((p) => {
+    const matchSearch =
+      p.title.toLowerCase().includes(searchText.toLowerCase()) ||
+      p.authorName.toLowerCase().includes(searchText.toLowerCase()) ||
+      p.categoryName.toLowerCase().includes(searchText.toLowerCase());
+
+    const matchCategory =
+      !selectedCategory || p.categoryId === selectedCategory;
+
+    return matchSearch && matchCategory;
+  });
+
   
-    const filtered = favorites.filter((p) => {
-      const matchSearch =
-        p.title.toLowerCase().includes(searchText.toLowerCase()) ||
-        p.authorName.toLowerCase().includes(searchText.toLowerCase()) ||
-        p.categoryName.toLowerCase().includes(searchText.toLowerCase());
-  
-      const matchCategory =
-        !selectedCategory || p.categoryId === selectedCategory;
-  
-      return matchSearch && matchCategory;
-    });
 
   if (!uid)
     return (
@@ -72,61 +79,46 @@ export default function FavoritesPage() {
 
   return (
     <div className="p-6 text-black">
-      <div className="w-2/3">
+      <div className="w-full">
         <h1 className="text-3xl font-bold mb-6">❤️ Your Favorites</h1>
 
-      {loading && <p>Loading...</p>}
+        {loading && <p>Loading...</p>}
+        {!loading && filtered.length === 0 && (
+          <p className="text-gray-600">No favorite posts yet.</p>
+        )}
 
-      {!loading && filtered.length === 0 && (
-        <p className="text-gray-600">No favorite posts yet.</p>
-      )}
+        <div className="flex flex-col gap-4">
+          {filtered.map((post) => (
+            <Link
+              key={post.id}
+              href={`/post/${post.id}`}
+              className="border border-[#D9D9D9] rounded-lg p-4 flex gap-4 hover:bg-gray-50 transition"
+            >
+              {post.coverImage && (
+                <img
+                  src={post.coverImage}
+                  className="w-32 h-20 object-cover rounded"
+                  alt="cover"
+                />
+              )}
 
-      <div className="flex flex-col gap-4">
-        {filtered.map((post) => (
-          <Link
-            key={post.id}
-            href={`/post/${post.id}`}
-            className="border rounded-lg p-4 shadow bg-white"
-          >
-            {/* AUTHOR */}
-            <div className="flex gap-3 items-center mb-2">
-              <Image
-                src={post.authorImage || "/profile.jpg"}
-                alt="author"
-                width={36}
-                height={36}
-                className="rounded-full object-cover"
-              />
+              <div className="flex flex-col justify-between">
+                <h2 className="text-xl font-semibold">{post.title}</h2>
 
-              <div>
-                <p className="font-semibold">{post.authorName}</p>
+                <p className="text-xs text-gray-800 mt-1">
+                  Category: {post.categoryName}
+                </p>
 
-                {post.createdAt?.toDate && (
-                  <p className="text-sm text-gray-600">
-                    {post.createdAt.toDate().toLocaleString()} •{" "}
-                    {post.categoryName}
+                {post.viewCount !== undefined && (
+                  <p className="text-xs text-gray-600 mt-1">
+                    Favorited At: {post.favoritedAt?.toDate?.().toLocaleString()}
                   </p>
                 )}
               </div>
-            </div>
-
-            {/* TITLE + SUMMARY */}
-            <h2 className="text-xl font-bold">{post.title}</h2>
-            <p className="text-gray-700 mb-3">{post.summary}</p>
-
-            {/* COVER IMAGE */}
-            {post.coverImage && (
-              <img
-                src={post.coverImage}
-                className="w-full rounded mt-2"
-                alt="cover"
-              />
-            )}
-          </Link>
-        ))}
+            </Link>
+          ))}
+        </div>
       </div>
-      </div>
-      
     </div>
   );
 }

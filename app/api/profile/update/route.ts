@@ -26,9 +26,9 @@ export async function PATCH(req: Request) {
 
     let photoURL: string | null = null;
 
-    // -------------------------
-    // UPLOAD TO CLOUDINARY
-    // -------------------------
+    // -------------------------------------------------------
+    // 1. Upload to Cloudinary (if new photo is uploaded)
+    // -------------------------------------------------------
     if (file) {
       const buffer = Buffer.from(await file.arrayBuffer());
 
@@ -36,7 +36,7 @@ export async function PATCH(req: Request) {
         `data:${file.type};base64,${buffer.toString("base64")}`,
         {
           folder: "profiles",
-          public_id: uid, // overwrite old photo
+          public_id: uid, // overwrite existing
           transformation: [{ width: 400, height: 400, crop: "fill" }],
         }
       );
@@ -44,9 +44,9 @@ export async function PATCH(req: Request) {
       photoURL = uploaded.secure_url;
     }
 
-    // -------------------------
-    // UPDATE FIRESTORE
-    // -------------------------
+    // -------------------------------------------------------
+    // 2. Update user document
+    // -------------------------------------------------------
     await adminDb.collection("users").doc(uid).update({
       username,
       bio,
@@ -56,7 +56,30 @@ export async function PATCH(req: Request) {
       updatedAt: Date.now(),
     });
 
-    return NextResponse.json({ success: true, photoURL });
+    // -------------------------------------------------------
+    // 3. ALSO UPDATE ALL POSTS BY THIS USER
+    // -------------------------------------------------------
+    const postsSnap = await adminDb
+      .collection("posts")
+      .where("authorId", "==", uid)
+      .get();
+
+    const batch = adminDb.batch();
+
+    postsSnap.forEach((doc) => {
+      batch.update(doc.ref, {
+        authorName: username,
+        ...(photoURL && { authorImage: photoURL }),
+      });
+    });
+
+    await batch.commit();
+
+    return NextResponse.json({
+      success: true,
+      photoURL,
+      updatedPosts: postsSnap.size,
+    });
   } catch (err: any) {
     console.error("Profile update error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });

@@ -6,9 +6,8 @@ import useUser from "@/hooks/useUser";
 import { useState, useEffect, useRef } from "react";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
-import { useSearch } from "@/context/SearchContext";
-
-export default function UserNavbar() {
+ 
+export default function CommunityNavbar() {
   const { user } = useUser();
 
   const displayName = user?.username || "Guest";
@@ -51,9 +50,6 @@ export default function UserNavbar() {
     window.location.href = "/";
   };
 
-  const { searchText, setSearchText, selectedCategory, setSelectedCategory, categories } =
-    useSearch();
-
   return (
     <div className="px-3 py-1 h-full w-full grid grid-cols-12">
       {/* LOGO */}
@@ -63,106 +59,6 @@ export default function UserNavbar() {
           ResearcHub
         </h1>
       </Link>
-
-      <div className="flex items-center gap-3 mx-auto col-start-3">
-
-      {/* SEARCH BAR */}
-      <div className="relative w-full flex justify-between items-center pl-3 pr-6 gap-1 py-1 border-[#D9D9D9] border rounded-3xl">
-          <input
-            type="text"
-            placeholder="Search"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            className="focus:outline-none"
-          />
-
-          <Image
-            src="/search.svg"
-            className="w-4 h-4 pointer-events-none"
-            width={24}
-            height={24}
-            alt="search"
-          />
-      </div>
-
-
-      {/* CATEGORY DROPDOWN */}
-      <div className="relative" ref={dropdownRef2}>
-        <button
-          onClick={() => setCatOpen(!catOpen)}
-          className="
-            flex items-center justify-between
-            px-4 py-1
-            border border-[#D9D9D9] 
-            rounded-3xl 
-            bg-white
-            cursor-pointer
-            w-64
-          "
-        >
-          <span className="truncate">
-            {selectedCategory
-              ? categories.find(c => c.id === selectedCategory)?.name
-              : "All Categories"}
-          </span>
-
-          <svg
-            className={`h-4 w-4 transition-transform duration-200 ${
-              catOpen ? "rotate-180" : ""
-            }`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
-        </button>
-
-        {/* DROPDOWN MENU */}
-        {catOpen && (
-          <div
-            className="
-              absolute right-2 mt-3 
-              bg-white rounded-lg shadow-lg z-50 
-              pb-2
-            "
-          >
-            {/* ALL CATEGORIES */}
-            <div
-              onClick={() => {
-                setSelectedCategory(null);
-                setCatOpen(false);
-              }}
-              className="px-4 py-2 hover:bg-gray-100 cursor-pointer rounded-t-lg"
-            >
-              All Categories
-            </div>
-
-            {/* CATEGORY LIST */}
-            <div>
-              {categories.map((c) => (
-                <div
-                  key={c.id}
-                  onClick={() => {
-                    setSelectedCategory(c.id);
-                    setCatOpen(false);
-                  }}
-                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-nowrap"
-                >
-                  {c.name}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-    </div>
 
       {/* RIGHT SIDE ICONS */}
       <div className="col-end-13 flex gap-4 items-center text-black">

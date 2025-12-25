@@ -64,7 +64,7 @@ export default function HistoryPage() {
   if (loading) return <p className="p-6">Loading...</p>;
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="p-6 w-full">
       <h1 className="text-3xl font-bold mb-6">History</h1>
 
       {filtered.length === 0 && (
@@ -76,7 +76,7 @@ export default function HistoryPage() {
           <Link
             href={`/post/${post.id}`}
             key={post.id}
-            className="border rounded-lg p-4 flex gap-4 hover:bg-gray-50 transition"
+            className="border border-[#D9D9D9] rounded-lg p-4 flex gap-4 hover:bg-gray-50 transition"
           >
             {post.coverImage && (
               <img
@@ -86,12 +86,15 @@ export default function HistoryPage() {
               />
             )}
 
-            <div className="flex-1">
+            <div className="flex flex-col justify-between">
               <h2 className="text-xl font-semibold">{post.title}</h2>
-              <p className="text-gray-600 text-sm">{post.summary}</p>
-              <p className="text-xs text-gray-400 mt-1">
-                Viewed: {post.viewedAt?.toDate?.().toLocaleString()}
+              <p className="text-xs text-gray-800">
+                Category: {post.categoryName}
               </p>
+              <p className="text-xs text-gray-600">
+                Last Viewed: {post.viewedAt?.toDate?.().toLocaleString()}
+              </p>
+              
             </div>
           </Link>
         ))}

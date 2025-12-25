@@ -103,7 +103,7 @@ export default function SignupPage() {
         )}
 
         <input
-          className="w-full py-2 px-4 rounded text-black w-full bg-white rounded-3xl mt-2 focus:outline-none focus:ring-0"
+          className="py-2 px-4 rounded text-black w-full bg-white mt-2 focus:outline-none focus:ring-0"
           placeholder="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
@@ -116,7 +116,7 @@ export default function SignupPage() {
         )}
 
         <input
-          className="w-full py-2 px-4 rounded-3xl w-full text-black focus:outline-none focus:ring-0 bg-white mt-2"
+          className="w-full py-2 px-4 rounded-3xl text-black focus:outline-none focus:ring-0 bg-white mt-2"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}

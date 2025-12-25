@@ -2,7 +2,6 @@
 import Protected from "@/components/Protected";
 import Sidebar from "@/components/sidebar";
 import UserNavbar from "@/components/usernavbar";
-import RightBar from "@/components/rightbar";
 
 export default function Layout({
   children,
@@ -19,11 +18,8 @@ export default function Layout({
         <div className="w-1/6 h-full bg-white border-r border-[#D9D9D9]">
           <Sidebar />
         </div>
-        <div className="w-7/12 overflow-y-auto hide-scrollbar">
+        <div className="w-5/6 overflow-y-auto hide-scrollbar">
           {children}
-        </div>
-        <div className="w-3/12 border-l border-[#D9D9D9]">
-          <RightBar />
         </div>
       </div>
       </Protected>

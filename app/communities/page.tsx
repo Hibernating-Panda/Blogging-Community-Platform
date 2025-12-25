@@ -5,3 +5,4 @@ export default function CommunitiesPage() {
     <h1>Communities</h1>
   );
 }
+  
