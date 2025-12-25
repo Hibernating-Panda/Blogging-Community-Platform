@@ -119,7 +119,7 @@ export default function LoginPage() {
           className={`bg-[#282D38] text-white px-8 py-2 rounded-3xl hover:opacity-80 cursor-pointer text-center mt-4
             ${loading ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
         >
-          {loading ? "Logging in..." : "Login"}
+          {loading ? "Signing in..." : "Sign in"}
         </button>
 
         {/* REGISTER LINK */}
