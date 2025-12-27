@@ -12,10 +12,7 @@ export default function Layout({
         <Navbar />
       </div>
       <div className="flex pt-16 h-screen">
-        <div className="w-1/6 h-full bg-white border-r">
-          <Sidebar />
-        </div>
-        <div className="w-5/6 overflow-auto">
+        <div className="w-full overflow-auto">
           {children}
         </div>
       </div>
