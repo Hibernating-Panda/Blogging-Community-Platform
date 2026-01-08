@@ -44,6 +44,12 @@ export default function Sidebar() {
           <div>History</div>
         </Link>
 
+        <Link href="/forum" className={linkClasses("/forum")}>
+          <svg xmlns="http://www.w3.org/2000/svg" height="28px" viewBox="0 -960 960 960" width="28px" fill="currentColor">
+            <path d="M120-120v-720h720v720H360l-240 180v-180H120Zm60-600v480h540v-480H180Zm0 0v480-480Z"/>
+          </svg>
+          <div>Forum</div>
+        </Link>
       </div>
     </div>
   );
