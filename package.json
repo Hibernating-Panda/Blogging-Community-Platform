@@ -5,12 +5,14 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
-    "start": "next start"
+    "start": "next start",
+    "make:admin": "tsx scripts/makeAdmin.ts"
   },
   "dependencies": {
     "@tiptap/react": "^3.12.1",
     "@tiptap/starter-kit": "^3.12.1",
     "cloudinary": "^2.7.0",
+    "dotenv": "^17.2.3",
     "firebase": "^12.6.0",
     "firebase-admin": "^13.6.0",
     "firebase-functions": "^7.0.0",
@@ -28,6 +30,8 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
   }
 }

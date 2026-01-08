@@ -19,14 +19,14 @@ interface Post {
   summary: string;
   coverImage: string;
   authorId: string;
-  authorName: string;
-  authorImage?: string;
+  authorProfile?: UserProfile | null;
   categoryId: string;
   categoryName: string;
   createdAt: any;
   likeCount: number;
   userLiked?: boolean;
   isFavorited?: boolean;
+  favoritedAt?: Date | null;
   commentCount?: number;
 }
 
@@ -35,10 +35,14 @@ interface PostCardProps {
   userId?: string | null;
 }
 
+interface UserProfile {
+  username: string;
+  photoURL?: string;
+}
+
 export default function PostCard({ userOnly = false, userId = null }: PostCardProps) {
-
-    const [authReady, setAuthReady] = useState(false);
-
+  const [userCache, setUserCache] = useState<Record<string, UserProfile>>({});
+  const [authReady, setAuthReady] = useState(false);
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [shareLink, setShareLink] = useState<string | null>(null);
@@ -58,58 +62,72 @@ export default function PostCard({ userOnly = false, userId = null }: PostCardPr
   useEffect(() => {
     if (!authReady) return; // wait until auth state known to keep hook order stable
     const loadPosts = async () => {
-      try {
-        const postSnap = await getDocs(collection(db, "posts"));
+  try {
+    const postSnap = await getDocs(collection(db, "posts"));
 
-        // ✅ Run like/favorite checks in PARALLEL for each post
-        const results: Post[] = await Promise.all(
-          postSnap.docs.map(async (postDoc) => {
-            const postId = postDoc.id;
-            const postData = postDoc.data() as Omit<Post, "id">;
+    // 1️⃣ Build posts array
+    const rawPosts = postSnap.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...(docSnap.data() as Omit<Post, "id">),
+    }));
 
-            let userLiked = false;
-            let isFavorited = false;
+    // 2️⃣ Collect UNIQUE authorIds
+    const authorIds = Array.from(
+      new Set(rawPosts.map((p) => p.authorId))
+    );
 
-            if (uid) {
-              const [myLikeSnap, favSnap] = await Promise.all([
-                getDoc(doc(db, "likes", postId, "users", uid)),
-                getDoc(doc(db, "favorites", uid, "posts", postId)),
-              ]);
+    // 3️⃣ Fetch ALL user profiles in parallel
+    const profileSnaps = await Promise.all(
+      authorIds.map((uid) => getDoc(doc(db, "users", uid)))
+    );
 
-              userLiked = myLikeSnap.exists();
-              isFavorited = favSnap.exists();
-            }
+    const profileMap: Record<string, UserProfile> = {};
 
-            return {
-              id: postId,
-              ...postData,
-              likeCount: postData.likeCount || 0,
-              userLiked,
-              isFavorited,
-            };
-          })
-        );
-
-        // Optional: sort newest first
-        results.sort((a, b) => {
-          const da =
-            a.createdAt?.toDate?.() ??
-            (typeof a.createdAt === "string"
-              ? new Date(a.createdAt)
-              : new Date(0));
-          const db_ =
-            b.createdAt?.toDate?.() ??
-            (typeof b.createdAt === "string"
-              ? new Date(b.createdAt)
-              : new Date(0));
-          return db_.getTime() - da.getTime();
-        });
-
-        setPosts(results);
-      } catch (err) {
-        console.error(err);
+    profileSnaps.forEach((snap, i) => {
+      if (snap.exists()) {
+        profileMap[authorIds[i]] = snap.data() as UserProfile;
       }
-    };
+    });
+
+    // 4️⃣ Attach profiles + likes/favorites
+    const results: Post[] = await Promise.all(
+      rawPosts.map(async (post) => {
+        let userLiked = false;
+        let isFavorited = false;
+
+        if (uid) {
+          const [likeSnap, favSnap] = await Promise.all([
+            getDoc(doc(db, "likes", post.id, "users", uid)),
+            getDoc(doc(db, "favorites", uid, "posts", post.id)),
+          ]);
+
+          userLiked = likeSnap.exists();
+          isFavorited = favSnap.exists();
+        }
+
+        return {
+          ...post,
+          authorProfile: profileMap[post.authorId] ?? null,
+          likeCount: post.likeCount || 0,
+          userLiked,
+          isFavorited,
+        };
+      })
+    );
+
+    // 5️⃣ Sort newest first
+    results.sort((a, b) => {
+      const da = a.createdAt?.toDate?.() ?? new Date(0);
+      const db_ = b.createdAt?.toDate?.() ?? new Date(0);
+      return db_.getTime() - da.getTime();
+    });
+
+    setPosts(results);
+  } catch (err) {
+    console.error("Load posts failed:", err);
+  }
+};
+
 
     // run once when auth is ready; refire when uid changes
     loadPosts();
@@ -211,7 +229,7 @@ export default function PostCard({ userOnly = false, userId = null }: PostCardPr
     const matchSearch =
       !search ||
       p.title.toLowerCase().includes(search) ||
-      p.authorName.toLowerCase().includes(search) ||
+      p.authorProfile?.username?.toLowerCase().includes(search) ||
       p.categoryName.toLowerCase().includes(search);
 
     const matchCategory =
@@ -255,7 +273,7 @@ export default function PostCard({ userOnly = false, userId = null }: PostCardPr
                   }}
                 >
                   <Image
-                    src={post.authorImage || "/profile.jpg"}
+                    src={post.authorProfile?.photoURL || "/profile.jpg"}
                     alt="author"
                     width={32}
                     height={32}
@@ -263,7 +281,7 @@ export default function PostCard({ userOnly = false, userId = null }: PostCardPr
                   />
 
                   <div className="w-full">
-                    <p className="font-semibold">{post.authorName}</p>
+                    <p className="font-semibold">{post.authorProfile?.username}</p>
                     <p className="text-gray-500 text-sm">
                       {createdAtDate.toLocaleString()} • {post.categoryName}
                     </p>

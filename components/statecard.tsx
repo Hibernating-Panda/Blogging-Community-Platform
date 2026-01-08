@@ -36,7 +36,7 @@ export default function StatCard({
 
       {/* Footer */}
       <div className="flex justify-between">
-        <p className="text-xs text-green-500">↗ {change}</p>
+        <p> </p>
         <p className="text-xs text-gray-400">{note}</p>
       </div>
     </div>
