@@ -1,188 +1,260 @@
 "use client";
 
-import Image from "next/image";
-import Sidebar from "@/components/sidebar";
-import Navbar from "@/components/navbar";
-import React, { useState } from "react";
-import { profile } from "console";
-import { Scroll } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { auth } from "@/lib/firebase";
 
-const researchPosts = [
-    {
-        id: 1,
-        title: "Advancements in AI Research",
-        date: "2024-01-15",
-        content: "This post discusses recent breakthroughs in artificial intelligence research.",
-        image: "/photo2.png",
-        profileImage: "/profile.jpeg",
-        user: "JohnDoe"
-    },
-        {
-        id: 2,
-        title: "Advancements in AI Research",
-        date: "2024-01-15",
-        content: "This post discusses recent breakthroughs in artificial intelligence research.",
-        image: "/photo2.png",
-        profileImage: "/profile.jpeg",
-        user: "John Smith"
-    },
-];
+/* ================= TYPES ================= */
 
-export default function AdminResearchPage(){
-      const [selectedPost, setSelectedPost] = useState<any>(null);
-      const [selectedDeletePost, setSelectedDeletePost] = useState<any>(null);
-    return(
-        <div className=" min-h-screen min-w-screen bg-white text-black">
-        <div className="fixed top-0 left-0 right-0 h-16 bg-white border-b z-20">
-            <Navbar/>
-        </div>
-    <div className="flex pt-16 h-screen">
-        <div className="w-64 border-r">
-            <Sidebar/>
-        </div>
-            <main className="bg-white items-center flex-1 p-6 overflow-y-auto overflow-auto">
-            <div className="flex-1 p-6 overflow-y-auto bg-gray-100 rounded-2xl border-2 border-black shadow-md">
-                    <h1 className="text-4xl font-bold ml-1">Research</h1>
-                                <div className="bg-white p-6 rounded-2xl mt-4">
-                                  {researchPosts.map((post) => (
-                                    <div
-                                      key={post.id}
-                                      className="flex p-4 mb-4 hover:bg-gray-100 rounded-2xl items-center border"
-                                    >
-                                      {/* Profile image */}
-                                      <Image
-                                        src={post.image}
-                                        alt={post.title}
-                                        width={100}
-                                        height={50}
-                                        className="rounded-xl"
-                                      />
-                    
-                                      {/* User info */}
-                                      <div className="flex flex-col ml-4">
-                                        <p className="text-lg font-medium">{post.title}</p>
-                                        <p className="text-sm text-gray-500">{post.date}</p>
-                                      </div>
-                    
-                                      {/* View details */}
-                                      <button
-                                        onClick={() => setSelectedPost(post)}
-                                        className="ml-auto mr-3 px-4 py-2 border rounded-lg bg-white hover:bg-blue-100"
-                                      >
-                                        View
-                                      </button>
-                    
-                                      {/* Delete */}
-                                      <button
-                                        onClick={() => setSelectedDeletePost(post)}
-                                        className="flex items-center border-2 rounded-lg bg-white hover:bg-red-100 p-2"
-                                      >
-                                        <span className="text-red-500 mr-2">Delete</span>
-                                        <Image
-                                          src="/delete.png"
-                                          alt="delete"
-                                          width={20}
-                                          height={20}
-                                        />
-                                      </button>
-                                    </div>
-                                  ))}
-                                </div>
-                </div>
-            </main>
-        </div>
-              {selectedPost && (
-                <div
-                  onClick={() => setSelectedPost(null)}
-                  className="absolute inset-0 bg-black/50 flex items-center justify-center z-50"
-                >
-                  <div
-                    onClick={(e) => e.stopPropagation()}
-                    className="bg-white rounded-2xl items-center p-6 w-[80%] h-full relative "
-                  >
-                    <button
-                      onClick={() => setSelectedPost(null)}
-                      className="absolute top-3 right-3 text-gray-500 hover:text-black"
-                    >
-                      ✕
-                    </button>
+type Post = {
+  id: string;
+  title?: string;
+  summary?: string;
+  authorId?: string;
+  authorName?: string;
+  authorImage?: string;
+  categoryName?: string;
+  coverImage?: string;
+  createdAt?: any;
+  updatedAt?: any;
+  likeCount?: number;
+  commentCount?: number;
+  viewCount?: number;
+  isPublished?: boolean;
+};
 
-                    <div className="flex mb-4">
-                        <Image
-                          src={selectedPost.profileImage}
-                          alt={selectedPost.user}
-                          width={50}
-                          height={50}
-                        className="rounded-4xl"
-                        />
-                        <div className="ml-4 flex flex-col">
-                            <h1 className="text-xl font-semibold">{selectedPost.user}</h1>
-                            <h2 className="text-sm text-gray-500">{selectedPost.date}</h2>
-                        </div>
-                    </div>
-                        <div className="flex flex-col ">
-                            <h2>SOS</h2>
-                            <h3>{selectedPost.content}</h3>
-                        </div>
-                        <div className="flex flex-col items-center mb-4">
-                        <Image
-                            src={selectedPost.image}
-                            alt={selectedPost.title}
-                            width={screen.width * 1}
-                            height={screen.height * 0.3}
-                            className="rounded-4xl"
-                        />
-                        <div className="ml-4">
-                                                    <p>This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research lligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence researchlligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence researchlligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence researchlligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.This post discusses recent breakthroughs in artificial intelligence research.</p>
+/* ================= HELPERS ================= */
 
-                        </div>
-                        </div>
-                  </div>
-                </div>
+// Parse ANY date shape → ms (for sorting)
+function toMillis(value: any): number {
+  if (!value) return 0;
+
+  if (value.seconds) return value.seconds * 1000;
+  if (value._seconds) return value._seconds * 1000;
+  if (typeof value === "number") return value;
+
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+
+  return 0;
+}
+
+// Format date WITHOUT timezone text
+function formatDate(value: any) {
+  if (!value) return "—";
+
+  let date: Date | null = null;
+
+  if (value.seconds) date = new Date(value.seconds * 1000);
+  else if (value._seconds) date = new Date(value._seconds * 1000);
+  else if (typeof value === "number") date = new Date(value);
+  else if (typeof value === "string") {
+    return value.replace(/\s*UTC[+-]\d+/i, "").trim();
+  }
+
+  if (!date || isNaN(date.getTime())) return "—";
+
+  return date.toLocaleString(undefined, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+/* ================= MODAL ================= */
+
+function Modal({
+  children,
+  onClose,
+}: {
+  children: React.ReactNode;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white p-6 rounded-xl w-[450px]"
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* ================= PAGE ================= */
+
+export default function AdminPostManagementPage() {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [selectedDeletePost, setSelectedDeletePost] = useState<Post | null>(null);
+
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<"newest" | "oldest">("newest");
+  const [loading, setLoading] = useState(true);
+
+  /* ---------- LOAD ---------- */
+  useEffect(() => {
+    const load = async () => {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) return;
+
+      const res = await fetch("/api/admin/posts", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setPosts(await res.json());
+      setLoading(false);
+    };
+
+    load();
+  }, []);
+
+  /* ---------- DELETE ---------- */
+  const deletePost = async (id: string) => {
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) return;
+
+    await fetch(`/api/admin/posts/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    setPosts((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  /* ---------- SORT + SEARCH ---------- */
+  const list = useMemo(() => {
+    const q = search.toLowerCase();
+
+    return [...posts]
+      .filter(
+        (p) =>
+          p.title?.toLowerCase().includes(q) ||
+          p.authorName?.toLowerCase().includes(q) ||
+          p.categoryName?.toLowerCase().includes(q)
+      )
+      .sort((a, b) => {
+        const aTime = toMillis(a.createdAt);
+        const bTime = toMillis(b.createdAt);
+        return sort === "newest" ? bTime - aTime : aTime - bTime;
+      });
+  }, [posts, search, sort]);
+
+  /* ---------- UI ---------- */
+  return (
+    <div className="p-6 bg-white text-black cursor-default">
+      <h1 className="text-3xl font-bold mb-4">
+        Research Management
+      </h1>
+
+      <div className="flex gap-4 mb-4">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search title, author, category"
+          className="px-3 py-2 border rounded w-[300px]"
+        />
+
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as any)}
+          className="px-3 py-2 border rounded cursor-pointer"
+        >
+          <option value="newest">Newest</option>
+          <option value="oldest">Oldest</option>
+        </select>
+      </div>
+
+      {/* List */}
+      {loading && <p>Loading…</p>}
+
+      {!loading && (
+        <div className="border rounded">
+          {list.map((p) => (
+            <div
+              key={p.id}
+              className="flex gap-4 px-4 py-3 border-b items-center hover:bg-gray-100"
+            >
+              {/* Cover */}
+              {p.coverImage ? (
+                <img
+                  src={p.coverImage}
+                  className="w-14 h-14 rounded object-cover"
+                />
+              ) : (
+                <div className="w-14 h-14 bg-gray-200 rounded" />
               )}
 
-        {selectedDeletePost && (
-        <div
-          onClick={() => setSelectedDeletePost(null)}
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl p-6 w-[400px] relative"
-          >
-            <button
-              onClick={() => setSelectedDeletePost(null)}
-              className="absolute top-3 right-3 text-gray-500 hover:text-black"
-            >
-              ✕
-            </button>
+              {/* Info */}
+              <div className="flex-1">
+                <p className="font-medium">{p.title}</p>
+                <p className="text-sm text-gray-500">
+                  {p.authorName} · {p.categoryName}
+                </p>
+                <p className="text-sm text-gray-400">
+                  Created: {formatDate(p.createdAt)}
+                </p>
+              </div>
 
-            <h2 className="text-xl font-semibold mb-4">
-              Delete Post: {selectedDeletePost.title}
-            </h2>
+              {/* Stats */}
+              <div className="text-sm text-gray-500 text-right">
+                ❤️ {p.likeCount ?? 0}<br />
+                💬 {p.commentCount ?? 0}<br />
+                👁 {p.viewCount ?? 0}
+              </div>
 
-            <p>Are you sure you want to delete this post?</p>
-
-            <div className="flex justify-end mt-4 space-x-2">
               <button
-                onClick={() => setSelectedDeletePost(null)}
-                className="px-4 py-2 border rounded-lg hover:bg-gray-100"
+                onClick={() => setSelectedPost(p)}
+                className="px-3 py-1 border rounded cursor-pointer"
               >
-                Cancel
+                View
               </button>
+
               <button
-                onClick={() => {
-                  // Handle deletion logic here
-                  setSelectedDeletePost(null);
-                }}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                onClick={() => setSelectedDeletePost(p)}
+                className="px-3 py-1 border rounded text-red-500 cursor-pointer"
               >
                 Delete
               </button>
             </div>
-          </div>
+          ))}
         </div>
       )}
+
+      {/* View Modal */}
+      {selectedPost && (
+        <Modal onClose={() => setSelectedPost(null)}>
+          <img src={selectedPost.coverImage} className="w-full h-64 object-cover" />
+          <p><b>Title:</b> {selectedPost.title}</p>
+          <p><b>Author:</b> {selectedPost.authorName}</p>
+          <p><b>Category:</b> {selectedPost.categoryName}</p>
+          <p><b>Created:</b> {formatDate(selectedPost.createdAt)}</p>
+          <p><b>Updated:</b> {formatDate(selectedPost.updatedAt)}</p>
+        </Modal>
+      )}
+
+      {/* Delete Modal */}
+      {selectedDeletePost && (
+        <Modal onClose={() => setSelectedDeletePost(null)}>
+          <p>Delete "{selectedDeletePost.title}"?</p>
+          <button
+            onClick={() => {
+              deletePost(selectedDeletePost.id);
+              setSelectedDeletePost(null);
+            }}
+            className="mt-4 bg-red-500 text-white px-4 py-2 rounded cursor-pointer"
+          >
+            Confirm Delete
+          </button>
+        </Modal>
+      )}
     </div>
-    )
+  );
 }

@@ -44,27 +44,55 @@ export default function PostDetail() {
       let authorName = data.authorName || "";
       let authorImage = data.authorImage || "/profile.jpg";
 
-      // 🔥 If authorName OR authorImage missing, fetch from users/{uid}
+      // 🔥 If authorName OR authorImage missing, try fetch from users/{uid}
       if (!authorName || !authorImage) {
-        const userSnap = await getDoc(doc(db, "users", data.authorId));
-        if (userSnap.exists()) {
-          const u = userSnap.data();
-          authorName = u.name || authorName;
-          authorImage = u.image || authorImage;
+        try {
+          const userSnap = await getDoc(doc(db, "users", data.authorId));
+          if (userSnap.exists()) {
+            const u = userSnap.data();
+            authorName = (u.username || u.displayName || u.name) || authorName;
+            authorImage = (u.photoURL || u.image) || authorImage;
+          }
+        } catch (e) {
+          // Permission denied or unavailable; fall back to existing values
+          console.warn("User profile fetch skipped:", e);
         }
       }
+
+      // Initialize like/favorite flags
+      let userLiked = false;
+      let isFavorited = false;
+      try {
+        const uid = auth.currentUser?.uid;
+        if (uid) {
+          const [likeSnap, favSnap] = await Promise.all([
+            getDoc(doc(db, "likes", id, "users", uid)),
+            getDoc(doc(db, "favorites", uid, "posts", id)),
+          ]);
+          userLiked = likeSnap.exists();
+          isFavorited = favSnap.exists();
+        }
+      } catch {}
 
       setPost({
         ...data,
         authorName,
         authorImage,
+        userLiked,
+        isFavorited,
       });
 
       // Load text content
       if (data.contentType === "txt" || data.contentType === "md") {
-        const res = await fetch(data.contentUrl);
-        const txt = await res.text();
-        setTextContent(txt);
+        try {
+          const res = await fetch(data.contentUrl);
+          if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+          const txt = await res.text();
+          setTextContent(txt);
+        } catch (e) {
+          console.error("Failed to load text content:", e);
+          setTextContent("[Unable to load content]");
+        }
       }
     };
 
@@ -135,6 +163,53 @@ export default function PostDetail() {
   }
 
   /* ---------------- COMMENT ---------------- */
+  // LIKE
+  const toggleLike = async () => {
+    if (!auth.currentUser) return alert("Login required");
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch(`/api/posts/${id}/like`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ value: 1 }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Like failed");
+      const { likeCount, value } = json;
+      setPost((p: any) => ({
+        ...p,
+        userLiked: value === 1,
+        likeCount: likeCount ?? p?.likeCount ?? 0,
+      }));
+    } catch (e) {
+      console.error(e);
+      alert("Failed to like. Please try again.");
+    }
+  };
+
+  // FAVORITE
+  const toggleFavorite = async () => {
+    if (!auth.currentUser) return alert("Login required");
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch(`/api/posts/${id}/favorite`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setPost((p: any) => ({
+        ...p,
+        isFavorited: data.favorited,
+        favoritedAt: data.favoritedAt ? new Date(data.favoritedAt) : null,
+      }));
+    } catch (e) {
+      console.error(e);
+      alert("Failed to favorite. Please try again.");
+    }
+  };
   // CREATE COMMENT
   const submitComment = async () => {
     if (!auth.currentUser || !commentText.trim()) return;
@@ -295,7 +370,7 @@ export default function PostDetail() {
       {/* LEFT CONTENT */}
       <div className="w-2/3 p-6 overflow-y-scroll relative hide-scrollbar">
 
-        {/* EDIT / DELETE ONLY FOR OWNER */}
+        
         {isOwner && (
           <div className="absolute right-4 top-8 flex gap-3">
             <Link
@@ -343,20 +418,42 @@ export default function PostDetail() {
 
         <h1 className="text-3xl font-bold mb-2">{post.title}</h1>
 
+        {/* ACTIONS */}
+        <div className="flex items-center gap-6 text-gray-700 mb-3">
+          <button onClick={toggleLike} className="flex items-center gap-2 cursor-pointer">
+            <img
+              src={post.userLiked ? "/thumbs-up-solid.svg" : "/thumbs-up-regular.svg"}
+              alt="like"
+              width={20}
+              height={20}
+            />
+            <span>{post.likeCount ?? 0}</span>
+          </button>
+
+          <button onClick={toggleFavorite} className="flex items-center gap-2 cursor-pointer">
+            <img
+              src={post.isFavorited ? "/heart-solid.svg" : "/heart-regular.svg"}
+              alt="favorite"
+              width={20}
+              height={20}
+            />
+          </button>
+        </div>
+
         {post.coverImage && (
           <img src={post.coverImage} className="w-full rounded mb-6" />
         )}
 
         <p className="text-gray-600 mb-4">{post.summary}</p>
 
-        {/* TEXT */}
+        
         {post.contentType === "txt" && (
           <pre className="whitespace-pre-wrap bg-gray-100 p-4 rounded border">
             {textContent}
           </pre>
         )}
 
-        {/* PDF */}
+        
         {post.contentType === "pdf" && (
           <iframe src={post.contentUrl} className="w-full h-[600px]" />
         )}
@@ -364,7 +461,7 @@ export default function PostDetail() {
 
       {/* RIGHT SIDE COMMENTS */}
       <div className="w-1/3 border-l p-4 overflow-y-scroll">
-        <h2 className="text-xl font-bold mb-3">Comments</h2>
+        <h2 className="text-xl font-bold mb-3">Comments ({comments.length})</h2>
 
         {/* INPUT BOX */}
         {replyingTo && (
