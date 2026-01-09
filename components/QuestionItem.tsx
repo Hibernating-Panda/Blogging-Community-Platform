@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Tag from "./Tag";
+import { PRESET_CATEGORIES } from "@/types/firestore";
 
 type Props = {
   id: string;
@@ -13,44 +14,39 @@ type Props = {
   time: string;
 };
 
-export default function QuestionItem({
-  id,
-  title,
-  desc,
-  votes,
-  answers,
-  views,
-  tags,
-  author,
-  time,
-}: Props) {
+export default function QuestionItem(props: Props) {
   return (
     <div className="flex gap-6 border-b pb-6">
       <div className="text-center text-sm text-gray-500 w-20">
-        <div>{votes} votes</div>
-        <div>{answers} answers</div>
-        <div>{views} views</div>
+        <div>{props.votes} votes</div>
+        <div>{props.answers} answers</div>
+        <div>{props.views} views</div>
       </div>
 
       <div className="flex-1">
         <Link
-          href={`/forum/${id}`}
+          href={`/forum/${props.id}`}
           className="text-blue-600 font-medium hover:underline"
         >
-          {title}
+          {props.title}
         </Link>
 
-        <p className="text-gray-600 mt-1">{desc}</p>
+        <p className="text-gray-600 mt-1">{props.desc}</p>
 
         <div className="flex justify-between items-center mt-2">
           <div className="flex gap-2 flex-wrap">
-            {tags.map((tag) => (
-              <Tag key={tag} name={tag} />
-            ))}
+            {props.tags.map((tagId) => {
+              const cat = PRESET_CATEGORIES.find(
+                (c) => c.id === tagId
+              );
+              return cat ? (
+                <Tag key={tagId} name={cat.name} />
+              ) : null;
+            })}
           </div>
 
           <span className="text-sm text-gray-500">
-            {author} · {time}
+            {props.author} · {props.time}
           </span>
         </div>
       </div>
