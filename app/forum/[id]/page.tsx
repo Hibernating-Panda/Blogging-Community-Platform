@@ -1,169 +1,268 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
 import { useParams } from "next/navigation";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  increment,
+  collection,
+  addDoc,
+  onSnapshot,
+  serverTimestamp,
+  runTransaction,
+} from "firebase/firestore";
+import { db, auth } from "../../../lib/firebase";
+import { PRESET_CATEGORIES } from "../../../types/firestore";
 
-export default function QuestionDetailPage() {
-  const params = useParams();
-  const id = params.id;
+export default function ForumDetailPage() {
+  const { id } = useParams();
+
+  const [forum, setForum] = useState<any>(null);
+  const [answers, setAnswers] = useState<any[]>([]);
+  const [answerText, setAnswerText] = useState("");
+  const [userVote, setUserVote] = useState<1 | -1 | 0>(0);
 
   useEffect(() => {
-    // Scroll to comments if hash exists
-    if (window.location.hash === "#comments") {
-      const el = document.getElementById("comments");
-      el?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, []);
+    if (!id) return;
+
+    const forumRef = doc(db, "forums", id as string);
+
+    // 🔹 Forum realtime
+    const unsubForum = onSnapshot(forumRef, (snap) => {
+      if (snap.exists()) {
+        setForum({ id: snap.id, ...snap.data() });
+      }
+    });
+
+    // 🔹 Answers realtime
+    const unsubAnswers = onSnapshot(
+      collection(db, "forumAnswers", id as string, "items"),
+      (snap) => {
+        setAnswers(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      }
+    );
+
+    // 🔹 Votes realtime (current user)
+    let unsubVote = () => {};
+    const unsubAuth = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        // Anonymous view tracking (per-browser) using localStorage
+        try {
+          const key = `forum_viewed_${id}`;
+          const alreadyViewed = typeof window !== "undefined" && window.localStorage.getItem(key);
+          if (!alreadyViewed) {
+            // Increment views once per browser for anonymous users
+            runTransaction(db, async (tx) => {
+              tx.update(forumRef, {
+                views: increment(1),
+              });
+            })
+              .then(() => {
+                if (typeof window !== "undefined") {
+                  window.localStorage.setItem(key, "1");
+                }
+              })
+              .catch(() => {
+                // ignore
+              });
+          }
+        } catch {
+          // ignore storage errors
+        }
+        return;
+      }
+
+      const voteRef = doc(
+        db,
+        "forumVotes",
+        id as string,
+        "users",
+        user.uid
+      );
+
+      unsubVote = onSnapshot(voteRef, (snap) => {
+        setUserVote(snap.exists() ? snap.data().value : 0);
+      });
+
+      // 🔥 VIEW TRACKING (TRANSACTION) — per-user
+      runTransaction(db, async (tx) => {
+        const viewRef = doc(
+          db,
+          "forumViews",
+          id as string,
+          "users",
+          user.uid
+        );
+
+        const viewSnap = await tx.get(viewRef);
+        if (!viewSnap.exists()) {
+          tx.set(viewRef, {
+            viewedAt: serverTimestamp(),
+          });
+
+          tx.update(forumRef, {
+            views: increment(1),
+          });
+        }
+      });
+    });
+
+    return () => {
+      unsubForum();
+      unsubAnswers();
+      unsubAuth();
+      unsubVote();
+    };
+  }, [id]);
+
+  /* ---------- POST ANSWER ---------- */
+  async function postAnswer() {
+    const user = auth.currentUser;
+    if (!user || !answerText.trim()) return;
+
+    const userSnap = await getDoc(doc(db, "users", user.uid));
+    const username =
+      userSnap.exists()
+        ? userSnap.data().username || "Anonymous"
+        : "Anonymous";
+
+    await addDoc(
+      collection(db, "forumAnswers", id as string, "items"),
+      {
+        text: answerText,
+        authorId: user.uid,
+        authorName: username,
+        createdAt: serverTimestamp(),
+      }
+    );
+
+    await updateDoc(doc(db, "forums", id as string), {
+      answersCount: increment(1),
+      updatedAt: serverTimestamp(),
+    });
+
+    setAnswerText("");
+  }
+
+  /* ---------- VOTE ---------- */
+  async function vote(value: 1 | -1) {
+    const user = auth.currentUser;
+    if (!user) return alert("Login required");
+
+    const forumRef = doc(db, "forums", id as string);
+    const voteRef = doc(
+      db,
+      "forumVotes",
+      id as string,
+      "users",
+      user.uid
+    );
+
+    await runTransaction(db, async (tx) => {
+      const voteSnap = await tx.get(voteRef);
+      let delta: number = value;
+
+      if (voteSnap.exists()) {
+        const prev = voteSnap.data().value as 1 | -1;
+        if (prev === value) {
+          tx.delete(voteRef);
+          delta = -value;
+        } else {
+          tx.update(voteRef, { value });
+          delta = value * 2;
+        }
+      } else {
+        tx.set(voteRef, { value });
+      }
+
+      tx.update(forumRef, {
+        votes: increment(delta),
+      });
+    });
+  }
+
+  if (!forum) return null;
 
   return (
-    <div className="p-6 space-y-8 bg-gray-100">
-      {/* QUESTION HEADER */}
-      <div className="flex justify-between items-start border-b pb-4">
-        {/* LEFT: Question Title + Meta */}
-        <div className="flex-1">
-          <h1 className="text-2xl font-semibold leading-snug">
-            Android Instrumentation test : Run button icon is not appearing for
-            custom buildType & classes not getting resolved
-          </h1>
+    <div className="p-6 space-y-6 bg-gray-100">
 
-          <div className="flex gap-6 text-sm text-gray-500 mt-2">
-            <span>Asked 10 days ago</span>
-            <span>Modified 5 days ago</span>
-            <span>Viewed 186 times</span>
-          </div>
-        </div>
+      <h1 className="text-2xl font-semibold">{forum.title}</h1>
 
-        {/* RIGHT: Ask Question Button */}
-        <div className="ml-4">
-          <button
-            onClick={() => (window.location.href = "/forum/ask_question")}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm"
-          >
-            Ask Question
-          </button>
-        </div>
-      </div>
-
-      {/* QUESTION BODY */}
-      <div className="space-y-4 text-gray-800 leading-relaxed">
-        <p>
-          I am trying to run Android instrumentation tests using a custom
-          buildType. However, the Run button icon does not appear and classes
-          are not getting resolved.
-        </p>
-
-        <p>
-          I tried syncing Gradle and invalidating caches, but the issue still
-          persists. Is there something I am missing in the Gradle configuration?
-        </p>
-      </div>
-
-      {/* TAGS */}
-      <div className="flex gap-2">
-        {["android", "instrumentation-test", "gradle"].map((tag) => (
-          <span
-            key={tag}
-            className="bg-blue-50 text-blue-700 px-3 py-1 rounded text-sm"
-          >
-            {tag}
-          </span>
-        ))}
-      </div>
-
-      {/* COMMENTS */}
-      {/* COMMENTS SECTION */}
-      <div id="comments" className="pt-6 border-t border-gray-200 mt-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-sm font-semibold text-gray-700">1 Comment</h2>
-        </div>
-
-        {/* COMMENTS SECTION */}
-        <div
-          id="comments"
-          className="mt-8 pt-6 border-t border-gray-700 bg-[#0d1117] text-[#c9d1d9]"
+      {/* VOTES */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => vote(1)}
+          className={`text-2xl ${
+            userVote === 1 ? "text-blue-600" : "text-gray-400"
+          }`}
         >
-          <div className="flex items-center gap-2 mb-4 px-4">
-            <h2 className="text-lg font-normal">1 Comment</h2>
-            <span className="text-gray-400 text-xs mt-1">⌵</span>
-          </div>
+          {userVote === 1 ? "▲" : "△"}
+        </button>
 
-          {/* INPUT BOX - Matching the image style */}
-          <div className="px-4 mb-4">
-            <div className="flex items-center gap-3 border border-gray-600 rounded-md p-2 bg-[#161b22] hover:border-blue-500 cursor-text">
-              <div className="w-6 h-6 rounded bg-green-900 flex items-center justify-center text-[10px]">
-                {/* Small logo/avatar icon as seen in image */}
-                🟢
-              </div>
-              <span className="text-gray-400 text-sm">Add a comment</span>
-            </div>
-          </div>
+        <span className="font-medium">{forum.votes}</span>
 
-          {/* COMMENT LIST */}
-          <div className="space-y-4 px-4 pb-6">
-            <div className="flex gap-3 text-[14px]">
-              {/* Circular Avatar */}
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 rounded-full bg-blue-500 overflow-hidden">
-                  <img
-                    src="https://via.placeholder.com/32"
-                    alt="avatar"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              </div>
+        <button
+          onClick={() => vote(-1)}
+          className={`text-2xl ${
+            userVote === -1 ? "text-red-600" : "text-gray-400"
+          }`}
+        >
+          {userVote === -1 ? "▼" : "▽"}
+        </button>
 
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[#58a6ff] font-medium hover:underline cursor-pointer">
-                    Raju Ugale
-                  </span>
-                  <span className="text-gray-500 text-xs">
-                    Dec 29, 2025 at 16:44
-                  </span>
-                </div>
-
-                <p className="text-[#c9d1d9] leading-relaxed">
-                  I have updated the question, facing this for custom buildType
-                </p>
-
-                {/* Action Buttons: Vote, Reply, More */}
-                <div className="flex gap-2 mt-3">
-                  <button className="flex items-center gap-1.5 bg-[#21262d] border border-gray-600 px-3 py-1 rounded-md text-xs hover:bg-[#30363d]">
-                    <span className="text-[10px]">▲</span> 0
-                  </button>
-                  <button className="flex items-center gap-1.5 bg-[#21262d] border border-gray-600 px-3 py-1 rounded-md text-xs hover:bg-[#30363d]">
-                    <span className="text-[10px]">💬</span> Reply
-                  </button>
-                  <button className="bg-[#21262d] border border-gray-600 px-2 py-1 rounded-md text-xs hover:bg-[#30363d]">
-                    •••
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ADD COMMENT LINK/INPUT */}
-        <div className="mt-4">
-          <button className="text-gray-400 hover:text-blue-500 text-[13px]">
-            Your Answer
-          </button>
-
-          {/* If you want the textarea to show on click: */}
-          <div className="mt-3 space-y-2">
-            <textarea
-              placeholder="Use comments to ask for more information or suggest improvements. Avoid answering in comments."
-              rows={3}
-              className="w-full border border-gray-300 rounded-sm p-3 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white"
-            />
-            <div className="flex justify-start">
-              <button className="bg-blue-500 text-white px-3 py-1.5 rounded-sm hover:bg-blue-600 text-[12px] font-medium shadow-sm">
-                Post Your Comment
-              </button>
-            </div>
-          </div>
-        </div>
+        <span className="text-sm text-gray-500">
+          {forum.views} views
+        </span>
       </div>
+
+      <p className="whitespace-pre-line">{forum.description}</p>
+
+      {/* CATEGORIES */}
+      <div className="flex gap-2 flex-wrap">
+        {forum.categories.map((c: string) => {
+          const cat = PRESET_CATEGORIES.find((x) => x.id === c);
+          return (
+            <span
+              key={c}
+              className="bg-blue-100 px-3 py-1 rounded text-sm"
+            >
+              {cat?.name}
+            </span>
+          );
+        })}
+      </div>
+
+      {/* ANSWERS */}
+      <h2 className="font-semibold">{answers.length} Answers</h2>
+
+      {answers.map((a) => (
+        <div key={a.id} className="bg-white p-4 rounded border">
+          <p>{a.text}</p>
+          <p className="text-sm text-gray-500 mt-2">
+            {a.authorName}
+          </p>
+        </div>
+      ))}
+
+      {/* ADD ANSWER */}
+      <textarea
+        rows={4}
+        value={answerText}
+        onChange={(e) => setAnswerText(e.target.value)}
+        className="w-full border p-3 rounded"
+        placeholder="Write your answer..."
+      />
+
+      <button
+        onClick={postAnswer}
+        className="bg-blue-600 text-white px-4 py-2 rounded"
+      >
+        Post Answer
+      </button>
     </div>
   );
 }
