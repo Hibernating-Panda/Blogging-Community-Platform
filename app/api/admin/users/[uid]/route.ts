@@ -1,11 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 
 export async function DELETE(
-  req: Request,
-  { params }: { params: { uid: string } }
+  req: NextRequest,
+  context: { params: Promise<{ uid: string }> }
 ) {
   try {
+    const { uid } = await context.params;
     const authHeader = req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Missing token" }, { status: 401 });
@@ -17,8 +18,6 @@ export async function DELETE(
     if (!decoded.admin) {
       return NextResponse.json({ error: "Admin only" }, { status: 403 });
     }
-
-    const uid = params.uid;
 
     // Delete Firestore profile
     await adminDb.collection("users").doc(uid).delete();
