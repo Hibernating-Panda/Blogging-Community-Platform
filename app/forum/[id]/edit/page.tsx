@@ -1,30 +1,72 @@
 "use client";
 
-import { useState } from "react";
-import { PRESET_CATEGORIES } from "../../../types/firestore";
-import { auth, db } from "../../../lib/firebase";
+import { useEffect, useState } from "react";
+import { PRESET_CATEGORIES } from "@/types/firestore";
+import { auth, db } from "@/lib/firebase";
 import {
-  addDoc,
-  collection,
+  doc,
+  getDoc,
+  updateDoc,
   serverTimestamp,
 } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
-export default function AskQuestionPage() {
+import React from "react";
+
+export default function EditQuestionPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const router = useRouter();
+
+  const { id } = React.use(params); // ✅ correct
+
+  const [loading, setLoading] = useState(true);
+  const [post, setPost] = useState<any>(null);
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 🔴 Error state
+  /* 🔴 ERRORS */
   const [errors, setErrors] = useState<{
     title?: string;
     body?: string;
     categories?: string;
     general?: string;
   }>({});
+
+  /* ---------------- LOAD QUESTION ---------------- */
+  useEffect(() => {
+    const load = async () => {
+      const snap = await getDoc(doc(db, "forums", id));
+      if (!snap.exists()) {
+        router.push("/forum");
+        return;
+      }
+
+      const data = snap.data();
+      setPost(data);
+      setTitle(data.title || "");
+      setBody(data.description || "");
+      setCategories(data.categories || []);
+      setLoading(false);
+    };
+
+    load();
+  }, [id, router]);
+
+  /* 🔐 OWNER CHECK */
+  if (loading) return <p className="p-6">Loading…</p>;
+  if (!auth.currentUser || auth.currentUser.uid !== post.authorId) {
+    return (
+      <p className="p-6 text-red-600">
+        You are not allowed to edit this question.
+      </p>
+    );
+  }
 
   /* ---------------- CATEGORY TOGGLE ---------------- */
   function toggleCategory(id: string) {
@@ -50,56 +92,41 @@ export default function AskQuestionPage() {
   function validate() {
     const e: typeof errors = {};
 
-    if (!title.trim() || title.trim().length < 10) {
+    if (!title.trim() || title.trim().length < 10)
       e.title = "Title must be at least 10 characters.";
-    }
 
-    if (!body.trim() || body.trim().length < 20) {
-      e.body = "Body must be at least 20 characters.";
-    }
+    if (!body.trim() || body.trim().length < 20)
+      e.body = "Description must be at least 20 characters.";
 
-    if (categories.length < 1) {
+    if (categories.length < 1)
       e.categories = "Select at least 1 category.";
-    }
 
     setErrors(e);
     return Object.keys(e).length === 0;
   }
 
-  /* ---------------- SUBMIT ---------------- */
-  async function handleSubmit() {
+  /* ---------------- SAVE ---------------- */
+  async function handleSave() {
     if (isSubmitting) return;
-
     if (!validate()) return;
-
-    const user = auth.currentUser;
-    if (!user) {
-      setErrors({ general: "Login required." });
-      return;
-    }
 
     setIsSubmitting(true);
     setErrors({});
 
     try {
-      const ref = await addDoc(collection(db, "forums"), {
+      await updateDoc(doc(db, "forums", id), {
         title: title.trim(),
         description: body.trim(),
         summary: body.trim().slice(0, 200),
         categories,
-        authorId: user.uid,
-        createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        votes: 0,
-        answersCount: 0,
-        views: 0,
       });
 
-      router.push(`/forum/${ref.id}`);
+      router.push(`/forum/${id}`);
     } catch (err) {
       console.error(err);
       setErrors({
-        general: "Failed to submit question. Please try again.",
+        general: "Failed to update question. Please try again.",
       });
     } finally {
       setIsSubmitting(false);
@@ -109,13 +136,13 @@ export default function AskQuestionPage() {
   /* ---------------- RENDER ---------------- */
   return (
     <div className="min-h-screen flex w-full bg-gray-50">
+      {/* LEFT FORM */}
       <div className="max-w-4xl py-10 px-6">
 
         <h1 className="text-3xl font-semibold mb-8">
-          Ask a public question
+          Edit Question
         </h1>
 
-        {/* GENERAL ERROR */}
         {errors.general && (
           <div className="mb-4 text-red-600 font-medium">
             {errors.general}
@@ -130,7 +157,6 @@ export default function AskQuestionPage() {
           )}
           <input
             className="w-full border px-4 py-2 rounded mt-2"
-            placeholder="e.g. How to implement authentication in Next.js?"
             value={title}
             onChange={(e) => {
               setTitle(e.target.value);
@@ -148,7 +174,6 @@ export default function AskQuestionPage() {
           <textarea
             rows={8}
             className="w-full border p-4 rounded mt-2"
-            placeholder="Provide detailed context, steps you've tried, and what you've already researched."
             value={body}
             onChange={(e) => {
               setBody(e.target.value);
@@ -191,17 +216,26 @@ export default function AskQuestionPage() {
           </div>
         </section>
 
-        {/* SUBMIT */}
-        <div className="flex justify-end">
+        {/* ACTIONS */}
+        <div className="flex justify-end gap-3">
           <button
-            onClick={handleSubmit}
+            onClick={() => router.push(`/forum/${id}`)}
+            className="px-6 py-3 bg-gray-200 rounded"
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={handleSave}
             disabled={isSubmitting}
             className="bg-blue-600 text-white px-6 py-3 rounded disabled:opacity-60"
           >
-            {isSubmitting ? "Submitting…" : "Submit Question"}
+            {isSubmitting ? "Saving…" : "Save Changes"}
           </button>
         </div>
       </div>
+
+      {/* RIGHT GUIDELINES */}
       <div className="w-1/4 absolute top-0 pt-20 px-4 right-0 border-l h-full border-[#D9D9D9] bg-white">
         <h2 className="text-xl font-bold mb-3">Editing Guidelines</h2>
 
@@ -210,7 +244,9 @@ export default function AskQuestionPage() {
             <span className="w-2 h-2 bg-black rounded-full mt-2"></span>
             <div>
               <p className="font-semibold">Keep Title Relevant</p>
-              <p className="text-sm">Ensure the research title reflects updates</p>
+              <p className="text-sm">
+                Make sure the title still reflects the question
+              </p>
             </div>
           </li>
 
@@ -219,7 +255,7 @@ export default function AskQuestionPage() {
             <div>
               <p className="font-semibold">Maintain Clarity</p>
               <p className="text-sm">
-                Ensure the description is clear and concise
+                Update the description clearly and concisely
               </p>
             </div>
           </li>

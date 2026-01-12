@@ -15,7 +15,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="w-1/6 h-full bg-white border-r border-[#D9D9D9]">
             <Sidebar />
           </div>
-          <div className="w-7/12 overflow-y-auto hide-scrollbar">
+          <div className="w-5/6 overflow-y-auto hide-scrollbar">
             {children}
           </div>
         </div>

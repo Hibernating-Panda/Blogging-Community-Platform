@@ -29,11 +29,12 @@ export async function GET(req: Request) {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
 
-    /* ---------- PARALLEL INDEXED QUERIES ---------- */
+    /* ---------- PARALLEL COUNT QUERIES ---------- */
     const [
       usersCountSnap,
       posts7DaysSnap,
       messagesDailySnap,
+      forumsCountSnap,
     ] = await Promise.all([
       // total users
       adminDb.collection("users").count().get(),
@@ -51,6 +52,9 @@ export async function GET(req: Request) {
         .where("createdAt", ">=", yesterday)
         .count()
         .get(),
+
+      // ✅ TOTAL FORUMS
+      adminDb.collection("forums").count().get(),
     ]);
 
     /* ---------- RESPONSE ---------- */
@@ -58,6 +62,7 @@ export async function GET(req: Request) {
       users: usersCountSnap.data().count,
       posts7Days: posts7DaysSnap.data().count,
       interactionsDaily: messagesDailySnap.data().count,
+      forums: forumsCountSnap.data().count, // ✅ NEW
     });
   } catch (err: any) {
     console.error("ADMIN STATS ERROR:", err);

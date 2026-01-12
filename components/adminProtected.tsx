@@ -7,7 +7,7 @@ import { onAuthStateChanged } from "firebase/auth";
 
 export default function AdminProtected({
   children,
-}: {
+}: { 
   children: React.ReactNode;
 }) {
   const router = useRouter();

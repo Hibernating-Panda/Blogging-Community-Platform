@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter, usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { auth, db } from "@/lib/firebase";
 import {
@@ -7,22 +8,31 @@ import {
   doc,
   getDocs,
   getDoc,
+  query,
+  orderBy,
+  limit,
+  onSnapshot,
 } from "firebase/firestore";
 
 type Community = {
   id: string;
   name: string;
   profileImage?: string | null;
+  lastReadAt?: any;
+  lastMessageAt?: any;
+  hasUnread?: boolean;
 };
 
 export default function CommunitySidebar() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [uid, setUid] = useState<string | null>(null);
+
   const [open, setOpen] = useState(false);
   const [communities, setCommunities] = useState<Community[]>([]);
-
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const uid = auth.currentUser?.uid;
 
-  /* CLOSE DROPDOWN */
+  /* ---------------- CLOSE DROPDOWN ---------------- */
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -33,41 +43,114 @@ export default function CommunitySidebar() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  /* LOAD USER COMMUNITIES */
+  // Keep uid in state to avoid SSR/early access
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged((user) => {
+      setUid(user?.uid ?? null);
+    });
+    return () => unsub();
+  }, []);
+
+  /* ---------------- LOAD COMMUNITIES (FAST) ---------------- */
   useEffect(() => {
     if (!uid) return;
 
-    const loadCommunities = async () => {
-      const snap = await getDocs(
+    const unsubscribers: (() => void)[] = [];
+
+    const load = async () => {
+      const userCommunitiesSnap = await getDocs(
         collection(db, "users", uid, "communities")
       );
 
-      const list: Community[] = [];
+      // 1️⃣ Build base list ONCE
+      const baseList: Community[] = await Promise.all(
+        userCommunitiesSnap.docs.map(async (d) => {
+          const communitySnap = await getDoc(
+            doc(db, "communities", d.id)
+          );
 
-      for (const d of snap.docs) {
-        const communitySnap = await getDoc(
-          doc(db, "communities", d.id)
+          const data = communitySnap.data();
+          const userData = d.data();
+
+          return {
+            id: d.id,
+            name: data?.name ?? "Unknown",
+            profileImage: data?.profileImage ?? null,
+            lastReadAt: userData?.lastReadAt ?? null,
+            lastMessageAt: null,
+            hasUnread: false,
+          };
+        })
+      );
+
+      setCommunities(baseList);
+
+      // 2️⃣ Attach listeners per community: user doc (lastReadAt) and last message
+      userCommunitiesSnap.docs.forEach((d) => {
+        const communityId = d.id;
+
+        // Helpers to compare timestamps robustly (milliseconds precision)
+        const toMs = (ts: any) =>
+          ts?.toMillis
+            ? ts.toMillis()
+            : (ts?.seconds ?? 0) * 1000 + Math.floor((ts?.nanoseconds ?? 0) / 1e6);
+        const computeHasUnread = (lastReadAt: any, lastMessageAt: any) => {
+          if (!lastMessageAt) return false;
+          if (!lastReadAt) return false; // avoid flicker until lastReadAt known
+          return toMs(lastMessageAt) > toMs(lastReadAt);
+        };
+
+        // Listen to user's community doc for lastReadAt updates
+        const unsubUser = onSnapshot(
+          doc(db, "users", uid, "communities", communityId),
+          (snap) => {
+            const lastReadAt = snap.data()?.lastReadAt ?? null;
+            setCommunities((prev) =>
+              prev.map((c) =>
+                c.id === communityId
+                  ? {
+                      ...c,
+                      lastReadAt,
+                      hasUnread: computeHasUnread(lastReadAt, c.lastMessageAt),
+                    }
+                  : c
+              )
+            );
+          }
         );
 
-        if (!communitySnap.exists()) continue;
+        // Listen to most recent message for lastMessageAt updates
+        const q = query(
+          collection(db, "communities", communityId, "messages"),
+          orderBy("createdAt", "desc"),
+          limit(1)
+        );
 
-      const data = communitySnap.data();
+        const unsubMsg = onSnapshot(q, (snap) => {
+          const lastMessageAt = snap.docs[0]?.data()?.createdAt ?? null;
+          setCommunities((prev) =>
+            prev.map((c) => {
+              if (c.id !== communityId) return c;
+              // If lastReadAt not known yet, update lastMessageAt but keep prior hasUnread to avoid flicker
+              const hasUnread = c.lastReadAt
+                ? computeHasUnread(c.lastReadAt, lastMessageAt)
+                : c.hasUnread;
+              return { ...c, lastMessageAt, hasUnread };
+            })
+          );
+        });
 
-      list.push({
-        id: communitySnap.id,
-        name: data.name,
-        profileImage: data.profileImage || null,
+        unsubscribers.push(unsubUser);
+        unsubscribers.push(unsubMsg);
       });
-
-      }
-
-      setCommunities(list);
     };
 
-    loadCommunities();
+    load();
+
+    return () => unsubscribers.forEach((u) => u());
   }, [uid]);
 
-
+  /* ---------------- UI ---------------- */
   return (
     <div className="h-full w-full p-4">
       {/* HEADER */}
@@ -77,22 +160,22 @@ export default function CommunitySidebar() {
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setOpen(!open)}
-            className="text-white px-2 rounded-xl border border-[#6B7280] bg-[#282D38] cursor-pointer hover:opacity-80"
+            className="text-white px-2 rounded-xl border border-[#6B7280] bg-[#282D38]"
           >
             +
           </button>
 
           {open && (
-            <div className="absolute right-0 w-50 bg-white rounded-lg shadow-lg z-50 border-[#6B7280] border text-center flex flex-col">
+            <div className="absolute right-0 bg-white rounded-lg shadow-lg z-50 border text-center flex flex-col">
               <button
-                onClick={() => (window.location.href = "/communities/create")}
-                className="hover:bg-[#6B7280] hover:text-white cursor-pointer rounded-t-md px-3 py-2"
+                onClick={() => router.push("/communities/create")}
+                className="hover:bg-[#6B7280] hover:text-white px-3 py-2"
               >
                 Create new Community
               </button>
               <button
-                onClick={() => (window.location.href = "/communities/join")}
-                className="hover:bg-[#6B7280] hover:text-white cursor-pointer rounded-b-md px-3 py-2"
+                onClick={() => router.push("/communities/join")}
+                className="hover:bg-[#6B7280] hover:text-white px-3 py-2"
               >
                 Join new Community
               </button>
@@ -101,50 +184,56 @@ export default function CommunitySidebar() {
         </div>
       </div>
 
-      {/* COMMUNITY NAMES */}
-      <div className="flex flex-col gap-2 text-base">
+      {/* LIST */}
+      <div className="flex flex-col gap-2">
         {communities.length === 0 && (
           <p className="text-sm text-gray-500">No communities yet</p>
         )}
 
-        {communities.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => (window.location.href = `/communities/${c.id}`)}
-            className="flex items-center gap-3 px-2 py-2 rounded hover:bg-gray-100 transition text-left cursor-pointer"
-          >
-            {/* AVATAR */}
-            {c.profileImage ? (
-              <img
-                src={c.profileImage}
-                alt={c.name}
-                className="w-8 h-8 rounded-full object-cover"
-              />
-            ) : (
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm"
-                style={{ backgroundColor: stringToColor(c.name) }}
-              >
-                {c.name.charAt(0).toUpperCase()}
-              </div>
-            )}
+        {communities.map((c) => {
+          const active = pathname === `/communities/${c.id}`;
 
-            {/* NAME */}
-            <span className="truncate">{c.name}</span>
-          </button>
-        ))}
+          return (
+            <button
+              key={c.id}
+              onClick={() => router.push(`/communities/${c.id}`)}
+              className={`flex items-center gap-3 px-2 py-2 rounded text-left ${
+                active ? "bg-[#6B7280] text-white" : "hover:bg-gray-100"
+              }`}
+            >
+              {/* AVATAR */}
+              {c.profileImage ? (
+                <img
+                  src={c.profileImage}
+                  className="w-8 h-8 rounded-full object-cover"
+                />
+              ) : (
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm"
+                  style={{ backgroundColor: stringToColor(c.name) }}
+                >
+                  {c.name.charAt(0).toUpperCase()}
+                </div>
+              )}
 
+              <span className="truncate flex-1">{c.name}</span>
+
+              {c.hasUnread && !active && (
+                <span className="w-2 h-2 bg-red-500 rounded-full" />
+              )}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
 }
 
+/* ---------------- COLOR HELPER ---------------- */
 function stringToColor(str: string) {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
-
-  const hue = Math.abs(hash) % 360;
-  return `hsl(${hue}, 70%, 50%)`;
+  return `hsl(${Math.abs(hash) % 360}, 70%, 50%)`;
 }

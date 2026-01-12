@@ -7,18 +7,62 @@ import { useState, useEffect, useRef } from "react";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 import { useSearch } from "@/context/SearchContext";
+import {
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  updateDoc,
+  doc,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
 
 export default function UserNavbar() {
   const { user } = useUser();
 
-  const displayName = user?.username || "Guest";
   const displayPhoto = user?.photoURL || "/profile.jpg";
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifOpen, setNotifOpen] = useState(false);
+
 
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [catOpen, setCatOpen] = useState(false);
   const dropdownRef2 = useRef<HTMLDivElement>(null);
+  const hasUnread = notifications.some((n) => !n.read);
+
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const q = query(
+      collection(db, "notifications", user.uid, "items"),
+      orderBy("createdAt", "desc")
+    );
+
+    return onSnapshot(q, (snap) => {
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+      setNotifications(list);
+    });
+  }, [user?.uid]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -182,9 +226,64 @@ export default function UserNavbar() {
         </div>
 
         {/* NOTIFICATION ICON */}
-        <svg className="cursor-pointer" xmlns="http://www.w3.org/2000/svg" height="28px" viewBox="0 -960 960 960" width="28px" fill="currentColor">
-          <path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z"/>
-        </svg>
+        <div ref={notifRef} className="relative">
+          <svg
+            onClick={() => setNotifOpen(!notifOpen)}
+            className="cursor-pointer"
+            xmlns="http://www.w3.org/2000/svg"
+            height="28px"
+            viewBox="0 -960 960 960"
+            width="28px"
+            fill="currentColor"
+          >
+            <path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80Z"/>
+          </svg>
+
+          {hasUnread && (
+            <span className="absolute top-0 right-0 w-2 h-2 bg-red-600 rounded-full"></span>
+          )}
+        </div>
+
+        {notifOpen && (
+          <div className="absolute right-0 mt-3 w-80 bg-white rounded-lg shadow-lg z-50">
+            <div className="flex justify-between items-center px-4 py-2 border-b">
+              <h3 className="font-semibold">Notifications</h3>
+              <button onClick={() => setNotifOpen(false)} className="text-gray-500 hover:text-gray-700 cursor-pointer">
+                ✕
+              </button>
+            </div>
+
+
+            {notifications.length === 0 && (
+              <p className="p-4 text-sm text-gray-500">No notifications</p>
+            )}
+
+            {notifications.map((n) => (
+              <Link
+                key={n.id}
+                href={`/post/${n.postId}`}
+                onClick={async () => {
+                  await updateDoc(
+                    doc(db, "notifications", user!.uid, "items", n.id),
+                    { read: true }
+                  );
+                  setNotifOpen(false);
+                }}
+                className={`block px-4 py-3 text-sm hover:bg-gray-100 ${
+                  !n.read ? "bg-blue-50" : ""
+                }`}
+              >
+                <p className="font-medium">
+                  {n.fromUsername} replied to your comment
+                </p>
+                <p className="text-gray-600 truncate">{n.replyText}</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {n.createdAt?.toDate?.().toLocaleString()}
+                </p>
+              </Link>
+            ))}
+          </div>
+        )}
 
         {/* PROFILE DROPDOWN */}
         <div ref={dropdownRef} className="relative">

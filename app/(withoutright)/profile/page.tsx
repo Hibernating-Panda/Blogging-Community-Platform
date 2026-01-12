@@ -11,6 +11,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
 
   const [editMode, setEditMode] = useState(false);
+  const [activeTab, setActiveTab] = useState<"all" | "posts" | "forums">("all");
 
   // Profile fields
   const [username, setUsername] = useState("");
@@ -26,6 +27,8 @@ export default function ProfilePage() {
 
   const [originalData, setOriginalData] = useState<any>({});
   const [userPosts, setUserPosts] = useState<any[]>([]);
+  const [publicCommunities, setPublicCommunities] = useState<any[]>([]);
+  const [userForums, setUserForums] = useState<any[]>([]);
 
   // Load user posts
   const loadPosts = async () => {
@@ -45,6 +48,20 @@ export default function ProfilePage() {
   };
 
   loadPosts();
+
+  const loadForums = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const forumsSnap = await getDocs(
+      query(collection(db, "forums"), where("authorId", "==", user.uid))
+    );
+
+    const list = forumsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    setUserForums(list);
+  };
+
+  loadForums();
 
 
 
@@ -71,6 +88,26 @@ export default function ProfilePage() {
     };
 
     loadProfile();
+  }, []);
+
+  useEffect(() => {
+    const loadCommunities = async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const memSnap = await getDocs(collection(db, "users", user.uid, "communities"));
+      const list: any[] = [];
+      for (const d of memSnap.docs) {
+        const cSnap = await getDoc(doc(db, "communities", d.id));
+        if (cSnap.exists()) {
+          const data: any = { id: cSnap.id, ...cSnap.data() } as any;
+          if (data.visibility === "public") list.push(data);
+        }
+      }
+      setPublicCommunities(list);
+    };
+
+    loadCommunities();
   }, []);
 
   const handlePhotoChange = (file: File | null) => {
@@ -105,7 +142,7 @@ export default function ProfilePage() {
     const formData = new FormData();
     formData.append("uid", user.uid);
     formData.append("username", username);
-    formData.append("bio", bio);
+    formData.append("bio", bio); 
     formData.append("gender", gender);
     formData.append("workplace", workplace);
 
@@ -145,8 +182,9 @@ export default function ProfilePage() {
   // ------------------------------------------------------
   if (!editMode) {
     return (
-      <div className="max-w-2/3">
-        <div className="bg-white rounded-xl m-6 p-6 border border-[#D9D9D9]">
+      <div className="flex gap-6">
+        <div className="flex-1 max-w-2/3">
+          <div className="bg-white rounded-xl p-6 mt-6 ml-6 border border-[#D9D9D9]">
         
           {/* PHOTO */}
           <div className="flex gap-2 w-full cursor-default">
@@ -188,15 +226,94 @@ export default function ProfilePage() {
               {bio || "No bio provided"}
             </p>
           </div>
+          </div>
+
+         <div className="cursor-default">
+          {/* TABS */}
+          <div className="ml-6 mt-6 flex gap-2">
+            <button
+              className={`px-3 py-1 rounded cursor-pointer border ${activeTab === "all" ? "bg-[#282D38] text-white" : "bg-white"}`}
+              onClick={() => setActiveTab("all")}
+            >
+              All
+            </button>
+            <button
+              className={`px-3 py-1 rounded cursor-pointer border ${activeTab === "posts" ? "bg-[#282D38] text-white" : "bg-white"}`}
+              onClick={() => setActiveTab("posts")}
+            >
+              Posts
+            </button>
+            <button
+              className={`px-3 py-1 rounded cursor-pointer border ${activeTab === "forums" ? "bg-[#282D38] text-white" : "bg-white"}`}
+              onClick={() => setActiveTab("forums")}
+            >
+              Forums
+            </button>
+          </div>
+
+          {/* CONTENT */}
+          <div className="ml-6 mt-4 space-y-6">
+            {(activeTab === "all" || activeTab === "posts") && (
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Your Posts</h2>
+                {userPosts.length === 0 ? (
+                  <p className="text-gray-500">No posts yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {userPosts.map((p) => (
+                      <div key={p.id} className="border border-[#D9D9D9] rounded p-3 bg-white hover:bg-gray-50 transition cursor-pointer" onClick={() => (window.location.href = `/post/${p.id}`)}>
+                        <p className="font-semibold">{p.title}</p>
+                        <img src={p.coverImageUrl} alt={p.title} className="w-full h-80 object-contain rounded" />
+                        <p className="text-sm text-gray-600 truncate">{p.summary}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {(activeTab === "all" || activeTab === "forums") && (
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Your Forums</h2>
+                {userForums.length === 0 ? (
+                  <p className="text-gray-500">No forums yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {userForums.map((f) => (
+                      <div key={f.id} className="border border-[#D9D9D9] rounded p-3 bg-white hover:bg-gray-50 transition cursor-pointer" onClick={() => (window.location.href = `/forum/${f.id}`)}>
+                        <p className="font-semibold">{f.title}</p>
+                        <p className="text-sm text-gray-600 truncate">{(f.answersCount || 0)} answers</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
         </div>
 
-       <div className="cursor-default">
-        {/* user profile UI here */}
-
-        <h2 className="text-2xl font-bold ml-6">Your Posts</h2>
-
-        <PostCard userOnly={true} />
-      </div>
+        <aside className="w-80 sticky top-6 bg-white border border-[#D9D9D9] rounded-xl h-fit p-4 mt-6">
+          <h3 className="font-semibold mb-3">Your Communities</h3>
+          {publicCommunities.length === 0 ? (
+            <p className="text-sm text-gray-500">No communities joined.</p>
+          ) : (
+            <ul className="space-y-2">
+              {publicCommunities.map((c) => (
+                <a href={`/communities/${c.id}`} key={c.id} className="flex items-center gap-2 hover:bg-gray-100 p-2 rounded">
+                  {c.profileImage ? (
+                    <img src={c.profileImage} className="w-8 h-8 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-xs text-white">
+                      {String(c.name || "?").charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="text-md">{c.name}</div>
+                </a>
+              ))}
+            </ul>
+          )}
+        </aside>
       </div>
     );
   }
@@ -313,35 +430,75 @@ return (
       </div>
 
     </div>
-          {/* USER POSTS */}
-      <div className="mt-10">
-        <h2 className="text-2xl font-bold mb-4">Your Posts</h2>
+    {/* TABS + CONTENT (Edit Mode) */}
+    <div className="mt-10">
+      <div className="flex gap-2">
+        <button
+          className={`px-3 py-1 rounded cursor-pointer border ${activeTab === "all" ? "bg-[#282D38] text-white" : "bg-white"}`}
+          onClick={() => setActiveTab("all")}
+        >
+          All
+        </button>
+        <button
+          className={`px-3 py-1 rounded cursor-pointer border ${activeTab === "posts" ? "bg-[#282D38] text-white" : "bg-white"}`}
+          onClick={() => setActiveTab("posts")}
+        >
+          Posts
+        </button>
+        <button
+          className={`px-3 py-1 rounded cursor-pointer border ${activeTab === "forums" ? "bg-[#282D38] text-white" : "bg-white"}`}
+          onClick={() => setActiveTab("forums")}
+        >
+          Forums
+        </button>
+      </div>
 
-        {userPosts.length === 0 ? (
-          <p className="text-gray-500">You haven't published any posts yet.</p>
-        ) : (
-          <div className="space-y-4">
-            {userPosts.map((post) => (
-              <div
-                key={post.id}
-                className="border border-gray-300 rounded-lg p-4 bg-white cursor-pointer hover:bg-gray-50 transition"
-                onClick={() => (window.location.href = `/post/${post.id}`)}
-              >
-                <h3 className="text-xl font-semibold">{post.title}</h3>
-
-                <p className="text-gray-600 text-sm mt-1">
-                  {post.summary?.slice(0, 80)}...
-                </p>
-
-                <p className="text-gray-400 text-xs mt-2">
-                  {post.categoryName || "Uncategorized"} •{" "}
-                  {post.createdAt?.toDate().toLocaleDateString()}
-                </p>
+      <div className="mt-4 space-y-6">
+        {(activeTab === "all" || activeTab === "posts") && (
+          <div>
+            <h2 className="text-2xl font-bold mb-2">Your Posts</h2>
+            {userPosts.length === 0 ? (
+              <p className="text-gray-500">You haven't published any posts yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {userPosts.map((post) => (
+                  <div
+                    key={post.id}
+                    className="border border-gray-300 rounded-lg p-4 bg-white cursor-pointer hover:bg-gray-50 transition"
+                    onClick={() => (window.location.href = `/post/${post.id}`)}
+                  >
+                    <h3 className="text-xl font-semibold">{post.title}</h3>
+                    <img src={post.coverImageUrl} alt={post.title} className="w-full h-48 object-cover rounded" />
+                    <p className="text-gray-600 text-sm mt-1">{post.summary?.slice(0, 80)}...</p>
+                    <p className="text-gray-400 text-xs mt-2">
+                      {(post.categoryName || "Uncategorized")} • {post.createdAt?.toDate().toLocaleDateString()}
+                    </p>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
+          </div>
+        )}
+
+        {(activeTab === "all" || activeTab === "forums") && (
+          <div>
+            <h2 className="text-2xl font-bold mb-2">Your Forums</h2>
+            {userForums.length === 0 ? (
+              <p className="text-gray-500">You haven't created any forums yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {userForums.map((f) => (
+                  <div key={f.id} className="border border-gray-300 rounded-lg p-4 bg-white cursor-pointer hover:bg-gray-50 transition" onClick={() => (window.location.href = `/forum/${f.id}`)}>
+                    <p className="font-semibold">{f.title}</p>
+                    <p className="text-sm text-gray-600 truncate">{(f.answersCount || 0)} answers</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
+    </div>
   </div>
 );
 

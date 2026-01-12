@@ -67,7 +67,7 @@ export default function AdminDashboardPage() {
             Platform Statistics
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
             <StatCard
               title="Total Registered Users"
               value={stats.users}
@@ -91,10 +91,18 @@ export default function AdminDashboardPage() {
               note="Recent activity"
               image="/comment-regular 1.svg"
             />
+
+            <StatCard
+              title="Total Forums"
+              value={stats.forums}
+              change="—"
+              note="All time"
+              image="/message-regular 2.svg"
+            />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Link href="/users" className="cursor-pointer hover:opacity-80 hover:scale-105">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Link href="/admin/users" className="cursor-pointer hover:opacity-80 hover:scale-105">
               <ActionCard
                 value="Users"
                 image="/comment-regular 1.svg"
@@ -102,8 +110,8 @@ export default function AdminDashboardPage() {
                 description="Manage and oversee user accounts"
               />
             </Link>
-            
-            <Link href="/research" className="cursor-pointer hover:opacity-80 hover:scale-105">
+             
+            <Link href="/admin/research" className="cursor-pointer hover:opacity-80 hover:scale-105">
               <ActionCard
                 value="Research"
                 image="/book-bookmark-solid 1.svg"
@@ -111,7 +119,7 @@ export default function AdminDashboardPage() {
                 description="Moderate and review research posts"
               />
             </Link>
-            <Link href="/community" className="cursor-pointer hover:opacity-80 hover:scale-105">
+            <Link href="/admin/community" className="cursor-pointer hover:opacity-80 hover:scale-105">
               <ActionCard
                 value="Communities"
                 image="/message-regular 2.svg"
@@ -119,6 +127,18 @@ export default function AdminDashboardPage() {
                 description="Manage communities and messages"
               />
             </Link>
+            <Link
+              href="/admin/forum"
+              className="cursor-pointer hover:opacity-80 hover:scale-105 transition"
+            >
+              <ActionCard
+                value="Forums"
+                image="/message-regular 2.svg"
+                title="Forum Management"
+                description="Moderate forums and answers"
+              />
+            </Link>
+
           </div>
         </div>
       </main>

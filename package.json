@@ -20,8 +20,11 @@
     "nodemailer": "^7.0.11",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "resend": "^6.5.2",
-    "tailwind-scrollbar-hide": "^4.0.0"
+    "tailwind-scrollbar-hide": "^4.0.0",
+    "turndown": "^7.2.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

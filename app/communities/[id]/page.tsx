@@ -15,6 +15,8 @@ import {
   orderBy,
   updateDoc,
   deleteDoc,
+  Timestamp,
+  setDoc,
 } from "firebase/firestore";
 
 /* ================= TYPES ================= */
@@ -159,6 +161,22 @@ export default function CommunityPage() {
       );
     });
   }, [id]);
+
+  useEffect(() => {
+    if (!uid || !id) return;
+
+    // mark as read AFTER messages load
+    if (messages.length === 0) return;
+    
+    setDoc(
+      doc(db, "users", uid, "communities", id),
+      {
+        lastReadAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  }, [messages.length, id, uid]);
+
 
   /* ---------- SEND MESSAGE ---------- */
 
@@ -548,6 +566,18 @@ export default function CommunityPage() {
           title="Members"
           members={members.filter((m: any) => m.role === "member").slice(0, 5)}
         />
+
+        {community.visibility === "private" && (
+          <div>
+            <h3 className="font-semibold mb-2">Private Community</h3>
+            <p className="text-sm text-gray-600">
+              Code:
+              <span className="ml-2 px-2 py-0.5 rounded bg-gray-300 blur-sm hover:blur-none transition cursor-text">
+                {community.inviteCode}
+              </span>
+            </p>
+          </div>
+        )}
       </aside>
 
     </div>

@@ -201,7 +201,7 @@ export default function JoinCommunityPage() {
                     <div>
                       <p className="font-semibold">{c.name}</p>
                       <p className="text-sm text-gray-500">
-                        {c.memberCount ?? 0} members
+                        {c.memberCount ?? 1} members
                       </p>
                     </div>
                   </div>

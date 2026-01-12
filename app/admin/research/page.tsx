@@ -12,8 +12,8 @@ type Post = {
   authorId?: string;
   authorName?: string;
   authorImage?: string;
-  categoryName?: string;
-  coverImage?: string;
+  categoryNames?: string[];
+  coverImageUrl?: string;
   createdAt?: any;
   updatedAt?: any;
   likeCount?: number;
@@ -138,7 +138,7 @@ export default function AdminPostManagementPage() {
         (p) =>
           p.title?.toLowerCase().includes(q) ||
           p.authorName?.toLowerCase().includes(q) ||
-          p.categoryName?.toLowerCase().includes(q)
+          p.categoryNames?.some((name) => name.toLowerCase().includes(q))
       )
       .sort((a, b) => {
         const aTime = toMillis(a.createdAt);
@@ -166,7 +166,7 @@ export default function AdminPostManagementPage() {
           value={sort}
           onChange={(e) => setSort(e.target.value as any)}
           className="px-3 py-2 border rounded cursor-pointer"
-        >
+        > 
           <option value="newest">Newest</option>
           <option value="oldest">Oldest</option>
         </select>
@@ -183,9 +183,9 @@ export default function AdminPostManagementPage() {
               className="flex gap-4 px-4 py-3 border-b items-center hover:bg-gray-100"
             >
               {/* Cover */}
-              {p.coverImage ? (
+              {p.coverImageUrl ? (
                 <img
-                  src={p.coverImage}
+                  src={p.coverImageUrl}
                   className="w-14 h-14 rounded object-cover"
                 />
               ) : (
@@ -196,7 +196,7 @@ export default function AdminPostManagementPage() {
               <div className="flex-1">
                 <p className="font-medium">{p.title}</p>
                 <p className="text-sm text-gray-500">
-                  {p.authorName} · {p.categoryName}
+                  {p.authorName} · {p.categoryNames?.join(", ")}
                 </p>
                 <p className="text-sm text-gray-400">
                   Created: {formatDate(p.createdAt)}
@@ -207,7 +207,6 @@ export default function AdminPostManagementPage() {
               <div className="text-sm text-gray-500 text-right">
                 ❤️ {p.likeCount ?? 0}<br />
                 💬 {p.commentCount ?? 0}<br />
-                👁 {p.viewCount ?? 0}
               </div>
 
               <button
@@ -231,10 +230,15 @@ export default function AdminPostManagementPage() {
       {/* View Modal */}
       {selectedPost && (
         <Modal onClose={() => setSelectedPost(null)}>
-          <img src={selectedPost.coverImage} className="w-full h-64 object-cover" />
+          {selectedPost.coverImageUrl && (
+          <img
+            src={selectedPost.coverImageUrl}
+            className="w-full h-64 object-contain rounded mb-3"
+          />
+          )}
           <p><b>Title:</b> {selectedPost.title}</p>
           <p><b>Author:</b> {selectedPost.authorName}</p>
-          <p><b>Category:</b> {selectedPost.categoryName}</p>
+          <p><b>Category:</b> {selectedPost.categoryNames?.join(", ")}</p>
           <p><b>Created:</b> {formatDate(selectedPost.createdAt)}</p>
           <p><b>Updated:</b> {formatDate(selectedPost.updatedAt)}</p>
         </Modal>

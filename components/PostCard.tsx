@@ -12,16 +12,17 @@ import {
 import Link from "next/link";
 import Image from "next/image";
 import { useSearch } from "@/context/SearchContext";
+import { onSnapshot } from "firebase/firestore";
 
 interface Post {
   id: string;
   title: string;
   summary: string;
-  coverImage: string;
+  coverImageUrl: string;
   authorId: string;
   authorProfile?: UserProfile | null;
-  categoryId: string;
-  categoryName: string;
+  categories: string[];
+  categoryNames: string[];
   createdAt: any;
   likeCount: number;
   userLiked?: boolean;
@@ -41,7 +42,6 @@ interface UserProfile {
 }
 
 export default function PostCard({ userOnly = false, userId = null }: PostCardProps) {
-  const [userCache, setUserCache] = useState<Record<string, UserProfile>>({});
   const [authReady, setAuthReady] = useState(false);
 
   const [posts, setPosts] = useState<Post[]>([]);
@@ -106,12 +106,28 @@ export default function PostCard({ userOnly = false, userId = null }: PostCardPr
         }
 
         return {
-          ...post,
+          id: post.id,
+          title: post.title,
+          summary: post.summary,
+
+          coverImageUrl: post.coverImageUrl || "",
+
+          authorId: post.authorId,
           authorProfile: profileMap[post.authorId] ?? null,
+
+          // ✅ FORCE NEW FIELDS
+          categories: Array.isArray(post.categories) ? post.categories : [],
+          categoryNames: Array.isArray(post.categoryNames)
+            ? post.categoryNames
+            : [],
+
+          createdAt: post.createdAt,
           likeCount: post.likeCount || 0,
+
           userLiked,
           isFavorited,
         };
+
       })
     );
 
@@ -165,6 +181,79 @@ export default function PostCard({ userOnly = false, userId = null }: PostCardPr
     }
   };
 
+  useEffect(() => {
+    if (!authReady) return;
+
+    const unsub = onSnapshot(collection(db, "posts"), async (snap) => {
+      const rawPosts = snap.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as any),
+      }));
+
+      const authorIds = Array.from(
+        new Set(rawPosts.map((p) => p.authorId))
+      );
+
+      const profileSnaps = await Promise.all(
+        authorIds.map((uid) => getDoc(doc(db, "users", uid)))
+      );
+
+      const profileMap: Record<string, UserProfile> = {};
+      profileSnaps.forEach((snap, i) => {
+        if (snap.exists()) {
+          profileMap[authorIds[i]] = snap.data() as UserProfile;
+        }
+      });
+
+      const results: Post[] = await Promise.all(
+        rawPosts.map(async (post) => {
+          let userLiked = false;
+          let isFavorited = false;
+
+          if (uid) {
+            const [likeSnap, favSnap] = await Promise.all([
+              getDoc(doc(db, "likes", post.id, "users", uid)),
+              getDoc(doc(db, "favorites", uid, "posts", post.id)),
+            ]);
+
+            userLiked = likeSnap.exists();
+            isFavorited = favSnap.exists();
+          }
+
+          return {
+            id: post.id,
+            title: post.title,
+            summary: post.summary,
+            coverImageUrl: post.coverImageUrl || "",
+
+            authorId: post.authorId,
+            authorProfile: profileMap[post.authorId] ?? null,
+
+            categories: post.categories || [],
+            categoryNames: post.categoryNames || [],
+
+            createdAt: post.createdAt,
+            likeCount: post.likeCount || 0,
+
+            userLiked,
+            isFavorited,
+          };
+        })
+      );
+
+      setPosts(
+        results.sort((a, b) => {
+          const da = a.createdAt?.toDate?.() ?? new Date(0);
+          const db_ = b.createdAt?.toDate?.() ?? new Date(0);
+          return db_.getTime() - da.getTime();
+        })
+      );
+    });
+
+    return () => unsub();
+  }, [uid, authReady]);
+
+
   // FAVORITE
   const toggleFavorite = async (postId: string, isFav: boolean) => {
     if (!auth.currentUser) return alert("Login required");
@@ -182,14 +271,20 @@ export default function PostCard({ userOnly = false, userId = null }: PostCardPr
       const data = await res.json();
 
       setPosts((curr) =>
-        curr.map((p) =>
-          p.id === postId 
-            ? { ...p, isFavorited: data.favorited,
-              favoritedAt: data.favoritedAt ? new Date(data.favoritedAt) : null,
-              }
-            : p
-        )
+        curr.map((p) => {
+          if (p.id !== postId) return p;
+
+          return {
+            ...p,
+            userLiked: data.value === 1,
+            likeCount:
+              typeof data.likeCount === "number"
+                ? data.likeCount
+                : p.likeCount + (data.value === 1 ? 1 : -1),
+          };
+        })
       );
+
     } catch (err) {
       console.error(err);
       alert("Failed to favorite. Please try again.");
@@ -230,14 +325,14 @@ export default function PostCard({ userOnly = false, userId = null }: PostCardPr
       !search ||
       p.title.toLowerCase().includes(search) ||
       p.authorProfile?.username?.toLowerCase().includes(search) ||
-      p.categoryName.toLowerCase().includes(search);
+      p.categoryNames.some((name) => name.toLowerCase().includes(search));
 
     const matchCategory =
-      !selectedCategory || p.categoryId === selectedCategory;
+      !selectedCategory || p.categories.includes(selectedCategory);
 
-    return matchSearch && matchCategory;
-  });
-}, [posts, searchText, selectedCategory, userOnly, userId, uid]);
+      return matchSearch && matchCategory;
+    });
+  }, [posts, searchText, selectedCategory, userOnly, userId, uid]);
 
 
   if (!authReady) return null; // or loading UI
@@ -283,12 +378,12 @@ export default function PostCard({ userOnly = false, userId = null }: PostCardPr
                   <div className="w-full">
                     <p className="font-semibold">{post.authorProfile?.username}</p>
                     <p className="text-gray-500 text-sm">
-                      {createdAtDate.toLocaleString()} • {post.categoryName}
+                      {createdAtDate.toLocaleString()} • {post.categoryNames.join(", ")}
                     </p>
                   </div>
                 </div>
 
-
+ 
                 {isOwner && (
                   <div className="flex gap-3 justify-end mb-2">
                     {/* EDIT */}
@@ -369,10 +464,10 @@ export default function PostCard({ userOnly = false, userId = null }: PostCardPr
                 <h2 className="text-xl font-bold">{post.title}</h2>
 
                 {/* ✅ Use next/image for better performance */}
-                {post.coverImage && (
+                {post.coverImageUrl && (
                   <div className="w-full mt-3 rounded overflow-hidden">
                     <Image
-                      src={post.coverImage}
+                      src={post.coverImageUrl}
                       alt={post.title}
                       width={1200}
                       height={675}
@@ -464,7 +559,7 @@ export default function PostCard({ userOnly = false, userId = null }: PostCardPr
                 </button>
 
                 {shareLink && (
-                  <div className="fixed bg-black/50 inset-0 flex items-center justify-center z-50 animate-fadeIn">
+                  <div className="fixed bg-black/20 inset-0 flex items-center justify-center z-50 animate-fadeIn">
                     <div className="bg-white p-6 rounded shadow-lg w-120 animate-fadeIn">
                       <div className="flex justify-between items-center mb-3">
                         <h3 className="font-bold">Share Link</h3>

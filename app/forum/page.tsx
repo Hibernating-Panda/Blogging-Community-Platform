@@ -90,31 +90,17 @@ export default function ForumPage() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="px-10 py-6">
+    <div className="min-h-screen bg-gray-50 cursor-default">
+      <div className="w-3/4 px-10 py-6">
 
         {/* HEADER */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-semibold">Forum</h1>
 
-          <Link
-            href="/forum/ask_question"
-            className="bg-blue-600 text-white px-5 py-2 rounded-md"
-          >
-            Ask Question
-          </Link>
-        </div>
-
-        {/* SORT BAR */}
-        <div className="flex items-center justify-between mb-6">
-          <p className="text-sm text-gray-600">
-            {filteredForums.length.toLocaleString()} questions
-          </p>
-
           <div className="flex border rounded-md overflow-hidden text-sm">
             <button
               onClick={() => setSort("newest")}
-              className={`px-4 py-2 ${
+              className={`px-4 py-2 cursor-pointer ${
                 sort === "newest"
                   ? "bg-gray-200 font-medium"
                   : "hover:bg-gray-100"
@@ -125,7 +111,7 @@ export default function ForumPage() {
 
             <button
               onClick={() => setSort("active")}
-              className={`px-4 py-2 ${
+              className={`px-4 py-2 cursor-pointer ${
                 sort === "active"
                   ? "bg-gray-200 font-medium"
                   : "hover:bg-gray-100"
@@ -136,7 +122,7 @@ export default function ForumPage() {
 
             <button
               onClick={() => setSort("unanswered")}
-              className={`px-4 py-2 ${
+              className={`px-4 py-2 cursor-pointer ${
                 sort === "unanswered"
                   ? "bg-gray-200 font-medium"
                   : "hover:bg-gray-100"
@@ -145,6 +131,13 @@ export default function ForumPage() {
               Unanswered
             </button>
           </div>
+
+          <Link
+            href="/forum/ask_question"
+            className="bg-blue-600 text-white px-5 py-2 rounded-md"
+          >
+            Ask Question
+          </Link>
         </div>
 
         {/* FORUM LIST */}
@@ -155,11 +148,11 @@ export default function ForumPage() {
               id={q.id}
               title={q.title}
               desc={q.description}
-              votes={q.votes ?? 0}
               answers={q.answersCount ?? 0}
               views={q.views ?? 0}
               tags={q.categories}
               author={q.authorName}
+              authorId={q.authorId}
               time={
                 q.createdAt?.seconds
                   ? new Date(
