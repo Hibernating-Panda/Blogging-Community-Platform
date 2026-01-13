@@ -21,6 +21,7 @@ export default function LoginPage() {
     // Basic email validation
     if (!email.includes("@") || !email.includes(".")) {
       setErrorEmail("Invalid email address");
+      setLoading(false);
       return;
     }
 
@@ -37,6 +38,7 @@ export default function LoginPage() {
         err.code === "auth/invalid-credential"
       ) {
         setErrorEmail("Incorrect email or password");
+        setLoading(false);
         return;
       }
 
@@ -47,7 +49,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex items-center justify-center h-screen bg-white text-black">
-      <div className="w-full max-w-lg bg-[#D9D9D9] p-10 rounded-xl shadow-md flex flex-col items-center gap-2">
+      <div className="w-full max-w-lg bg-[#F6F4EC] p-10 rounded-xl shadow-md flex flex-col items-center gap-2">
 
         <div className="w-full flex justify-start mb-[-12px]">
           <Link
@@ -60,7 +62,7 @@ export default function LoginPage() {
 
         {/* Logo */}
         <Image
-          src="/logo_with_background.svg"
+          src="/logo.png"
           alt="Logo"
           width={100}
           height={100}
@@ -127,15 +129,15 @@ export default function LoginPage() {
           Don't have an account?{" "}
           <Link
             href="/signup"
-            className="underline text-blue-600 cursor-pointer hover:opacity-70"
+            className="underline text-[#282D38] cursor-pointer hover:opacity-70"
           >
             Register
           </Link>
         </div>
 
-        <div className="text-blue-600 cursor-pointer hover:opacity-70">
+        {/* <div className="text-[#282D38] cursor-pointer hover:opacity-70">
           Forgot Password?
-        </div>
+        </div> */}
       </div>
     </div>
   );

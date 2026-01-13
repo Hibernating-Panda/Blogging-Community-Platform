@@ -55,20 +55,21 @@ export default function VerifyEmailPage() {
       }
     }
   };
-
+ 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 text-black px-4">
-      <div className="bg-white border shadow-lg p-8 rounded-2xl max-w-sm w-full animate-fadeIn">
+    <div className="flex items-center justify-center min-h-screen bg-white text-black px-4">
+      <div className="bg-[#F6F4EC] border shadow-lg p-8 rounded-2xl max-w-sm w-full animate-fadeIn">
 
         <h1 className="text-2xl font-bold mb-3">Check Your Email</h1>
 
         <p className="text-sm text-gray-600 mb-4">
           We've sent a verification link to
         </p>
-
-        <p className="font-semibold mb-6 bg-gray-100 p-2 rounded text-center">
-          {auth.currentUser?.email}
-        </p>
+        {auth.currentUser?.email && auth.currentUser.email.length > 0 ? (
+          <p className="font-semibold mb-6 bg-gray-100 p-2 rounded text-center">
+            {auth.currentUser.email}
+          </p>
+        ) : null}
 
         <button
           onClick={resendEmail}

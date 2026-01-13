@@ -160,22 +160,22 @@ export default function CommunitySidebar() {
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setOpen(!open)}
-            className="text-white px-2 rounded-xl border border-[#6B7280] bg-[#282D38]"
+            className="text-white px-2 rounded-md border border-[#6B7280] bg-[#282D38] cursor-pointer hover:bg-[#6B7280]"
           >
             +
           </button>
 
           {open && (
-            <div className="absolute right-0 bg-white rounded-lg shadow-lg z-50 border text-center flex flex-col">
+            <div className="absolute right-0 bg-white rounded-lg shadow-lg z-50 border text-center flex flex-col w-50">
               <button
                 onClick={() => router.push("/communities/create")}
-                className="hover:bg-[#6B7280] hover:text-white px-3 py-2"
+                className="hover:bg-[#6B7280] hover:text-white px-3 py-2 cursor-pointer"
               >
                 Create new Community
               </button>
               <button
                 onClick={() => router.push("/communities/join")}
-                className="hover:bg-[#6B7280] hover:text-white px-3 py-2"
+                className="hover:bg-[#6B7280] hover:text-white px-3 py-2 cursor-pointer"
               >
                 Join new Community
               </button>

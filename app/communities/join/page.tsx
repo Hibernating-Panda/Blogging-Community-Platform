@@ -84,24 +84,35 @@ export default function JoinCommunityPage() {
   const joinCommunity = async (community: Community) => {
     if (!uid) return;
 
+    // If already joined, show modal and do nothing
+    if (joinedIds.includes(community.id)) {
+      setAlreadyJoined(community);
+      return;
+    }
+
     setLoading(true);
+    try {
+      await setDoc(doc(db, "communities", community.id, "members", uid), {
+        role: "member",
+        joinedAt: serverTimestamp(),
+      });
 
-    await setDoc(doc(db, "communities", community.id, "members", uid), {
-      role: "member",
-      joinedAt: serverTimestamp(),
-    });
+      await setDoc(doc(db, "users", uid, "communities", community.id), {
+        joinedAt: serverTimestamp(),
+      });
 
-    await setDoc(doc(db, "users", uid, "communities", community.id), {
-      joinedAt: serverTimestamp(),
-    });
+      await updateDoc(doc(db, "communities", community.id), {
+        memberCount: increment(1),
+      });
 
-    await updateDoc(doc(db, "communities", community.id), {
-      memberCount: increment(1),
-    });
+      setJoinedIds((prev) => [...prev, community.id]);
+      setSelected(null);
 
-    setJoinedIds((prev) => [...prev, community.id]);
-    setSelected(null);
-    setLoading(false);
+      // Navigate to the community after successful join
+      window.location.href = `/communities/${community.id}`;
+    } finally {
+      setLoading(false);
+    }
   };
 
   /* ---------------- JOIN PRIVATE ---------------- */
@@ -133,24 +144,28 @@ export default function JoinCommunityPage() {
       return;
     }
 
-    await setDoc(doc(db, "communities", id, "members", uid), {
-      role: "member",
-      joinedAt: serverTimestamp(),
-    });
+    try {
+      await setDoc(doc(db, "communities", id, "members", uid), {
+        role: "member",
+        joinedAt: serverTimestamp(),
+      });
 
-    await setDoc(doc(db, "users", uid, "communities", id), {
-      joinedAt: serverTimestamp(),
-    });
+      await setDoc(doc(db, "users", uid, "communities", id), {
+        joinedAt: serverTimestamp(),
+      });
 
-    await updateDoc(doc(db, "communities", id), {
-      memberCount: increment(1),
-    });
+      await updateDoc(doc(db, "communities", id), {
+        memberCount: increment(1),
+      });
 
-    window.location.href = `/communities/${id}`;
+      window.location.href = `/communities/${id}`;
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="h-full bg-white flex gap-4">
+    <div className="h-full bg-white flex">
       {/* LEFT */}
       <div className="w-3/4 bg-white rounded-2xl shadow-md p-6">
         {/* TABS */}

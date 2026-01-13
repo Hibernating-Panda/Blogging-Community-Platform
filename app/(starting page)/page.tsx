@@ -25,8 +25,11 @@ export default function StartingPage() {
         <h1 className="text-7xl font-bold ">Enhance your
         <br />
         Research & idea</h1>
-        <p className="text-2xl">The only place where you can find research idea and collaboration in Cambodia</p>
-        <Link href="/signup" className="text-center bg-black rounded-4xl text-white text-lg p-2 w-75 cursor-pointer hover:opacity-80">Start Reading</Link>
+        
+        <br />
+        <p className="text-[27px]">The only place where you can find research idea and collaboration in Cambodia</p>
+        <br />
+        <Link href="/signup" className="text-center bg-black rounded-4xl text-white text-xl p-2 w-75 cursor-pointer hover:opacity-80">Start Reading</Link>
       </div>
       <div>
         <Image src="/logo.png" alt="logo" width={500} height={500} />

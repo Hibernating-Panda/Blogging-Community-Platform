@@ -13,13 +13,15 @@ import {
   orderBy,
   onSnapshot,
   updateDoc,
+  deleteDoc,
   doc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-
+import { useRouter } from "next/navigation";
 
 export default function UserNavbar() {
   const { user } = useUser();
+  const router = useRouter();
 
   const displayPhoto = user?.photoURL || "/profile.jpg";
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -32,19 +34,6 @@ export default function UserNavbar() {
   const [catOpen, setCatOpen] = useState(false);
   const dropdownRef2 = useRef<HTMLDivElement>(null);
   const hasUnread = notifications.some((n) => !n.read);
-
-  const notifRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
-        setNotifOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
 
 
   useEffect(() => {
@@ -63,32 +52,6 @@ export default function UserNavbar() {
       setNotifications(list);
     });
   }, [user?.uid]);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (
-        dropdownRef2.current &&
-        !dropdownRef2.current.contains(e.target as Node)
-      ) {
-        setCatOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
 
   const logout = async () => {
     await signOut(auth);
@@ -110,103 +73,103 @@ export default function UserNavbar() {
 
       <div className="flex items-center gap-3 mx-auto col-start-3">
 
-      {/* SEARCH BAR */}
-      <div className="relative w-full flex justify-between items-center pl-3 pr-6 gap-1 py-1 border-[#D9D9D9] border rounded-3xl">
-          <input
-            type="text"
-            placeholder="Search"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            className="focus:outline-none"
-          />
-
-          <Image
-            src="/search.svg"
-            className="w-4 h-4 pointer-events-none"
-            width={24}
-            height={24}
-            alt="search"
-          />
-      </div>
-
-
-      {/* CATEGORY DROPDOWN */}
-      <div className="relative" ref={dropdownRef2}>
-        <button
-          onClick={() => setCatOpen(!catOpen)}
-          className="
-            flex items-center justify-between
-            px-4 py-1
-            border border-[#D9D9D9] 
-            rounded-3xl 
-            bg-white
-            cursor-pointer
-            w-64
-          "
-        >
-          <span className="truncate">
-            {selectedCategory
-              ? categories.find(c => c.id === selectedCategory)?.name
-              : "All Categories"}
-          </span>
-
-          <svg
-            className={`h-4 w-4 transition-transform duration-200 ${
-              catOpen ? "rotate-180" : ""
-            }`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M19 9l-7 7-7-7"
+        {/* SEARCH BAR */}
+        <div className="relative w-full flex justify-between items-center pl-3 pr-6 gap-1 py-1 border-[#D9D9D9] border rounded-3xl">
+            <input
+              type="text"
+              placeholder="Search"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              className="focus:outline-none"
             />
-          </svg>
-        </button>
 
-        {/* DROPDOWN MENU */}
-        {catOpen && (
-          <div
+            <Image
+              src="/search.svg"
+              className="w-4 h-4 pointer-events-none"
+              width={24}
+              height={24}
+              alt="search"
+            />
+        </div>
+
+
+        {/* CATEGORY DROPDOWN */}
+        <div className="relative" ref={dropdownRef2}>
+          <button
+            onClick={() => setCatOpen(!catOpen)}
             className="
-              absolute right-2 mt-3 
-              bg-white rounded-lg shadow-lg z-50 
-              pb-2
+              flex items-center justify-between
+              px-4 py-1
+              border border-[#D9D9D9] 
+              rounded-3xl 
+              bg-white
+              cursor-pointer
+              w-64
             "
           >
-            {/* ALL CATEGORIES */}
-            <div
-              onClick={() => {
-                setSelectedCategory(null);
-                setCatOpen(false);
-              }}
-              className="px-4 py-2 hover:bg-gray-100 cursor-pointer rounded-t-lg"
+            <span className="truncate">
+              {selectedCategory
+                ? categories.find(c => c.id === selectedCategory)?.name
+                : "All Categories"}
+            </span>
+
+            <svg
+              className={`h-4 w-4 transition-transform duration-200 ${
+                catOpen ? "rotate-180" : ""
+              }`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              All Categories
-            </div>
+              <path
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
 
-            {/* CATEGORY LIST */}
-            <div>
-              {categories.map((c) => (
-                <div
-                  key={c.id}
-                  onClick={() => {
-                    setSelectedCategory(c.id);
-                    setCatOpen(false);
-                  }}
-                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-nowrap"
-                >
-                  {c.name}
-                </div>
-              ))}
+          {/* DROPDOWN MENU */}
+          {catOpen && (
+            <div
+              className="
+                absolute right-2 mt-3 
+                bg-white rounded-lg shadow-lg z-50 
+                pb-2
+              "
+            >
+              {/* ALL CATEGORIES */}
+              <div
+                onClick={() => {
+                  setSelectedCategory(null);
+                  setCatOpen(false);
+                }}
+                className="px-4 py-2 hover:bg-gray-100 cursor-pointer rounded-t-lg"
+              >
+                All Categories
+              </div>
+
+              {/* CATEGORY LIST */}
+              <div>
+                {categories.map((c) => (
+                  <div
+                    key={c.id}
+                    onClick={() => {
+                      setSelectedCategory(c.id);
+                      setCatOpen(false);
+                    }}
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-nowrap"
+                  >
+                    {c.name}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+
       </div>
-
-    </div>
 
       {/* RIGHT SIDE ICONS */}
       <div className="col-end-13 flex gap-4 items-center text-black">
@@ -226,7 +189,7 @@ export default function UserNavbar() {
         </div>
 
         {/* NOTIFICATION ICON */}
-        <div ref={notifRef} className="relative">
+        <div className="relative">
           <svg
             onClick={() => setNotifOpen(!notifOpen)}
             className="cursor-pointer"
@@ -245,8 +208,9 @@ export default function UserNavbar() {
         </div>
 
         {notifOpen && (
-          <div className="absolute right-0 mt-3 w-80 bg-white rounded-lg shadow-lg z-50">
-            <div className="flex justify-between items-center px-4 py-2 border-b">
+          <div className="fixed right-20 top-12 bg-white rounded-lg shadow-lg z-50 h-80 overflow-y-auto hide-scrollbar"
+            onMouseDown={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center px-4 py-2 border-b sticky top-0 bg-white w-60">
               <h3 className="font-semibold">Notifications</h3>
               <button onClick={() => setNotifOpen(false)} className="text-gray-500 hover:text-gray-700 cursor-pointer">
                 ✕
@@ -259,28 +223,26 @@ export default function UserNavbar() {
             )}
 
             {notifications.map((n) => (
-              <Link
+              <div
                 key={n.id}
-                href={`/post/${n.postId}`}
-                onClick={async () => {
-                  await updateDoc(
-                    doc(db, "notifications", user!.uid, "items", n.id),
-                    { read: true }
+                onClick={async () => {     
+                  router.push(`/post/${n.postId}`);
+                  await deleteDoc(
+                    doc(db, "notifications", user!.uid, "items", n.id)
                   );
-                  setNotifOpen(false);
                 }}
-                className={`block px-4 py-3 text-sm hover:bg-gray-100 ${
+                className={`block px-4 py-3 text-sm cursor-pointer hover:bg-gray-100 ${
                   !n.read ? "bg-blue-50" : ""
                 }`}
               >
                 <p className="font-medium">
-                  {n.fromUsername} replied to your comment
+                  {n.fromUsername} replied to {n.postTitle}
                 </p>
                 <p className="text-gray-600 truncate">{n.replyText}</p>
                 <p className="text-xs text-gray-400 mt-1">
                   {n.createdAt?.toDate?.().toLocaleString()}
                 </p>
-              </Link>
+              </div>
             ))}
           </div>
         )}
@@ -293,7 +255,7 @@ export default function UserNavbar() {
               alt="Profile"
               width={50}
               height={50}
-              className="h-10 w-10 rounded-full object-cover cursor-pointer"
+              className="min-h-10 min-w-10 rounded-full object-cover cursor-pointer"
             />
           </button>
 

@@ -31,21 +31,25 @@ export default function SignupPage() {
 
     if (username.length < 3) {
       setErrorUsername("Username must be at least 3 characters long");
+      setLoading(false);
       return;
     }
 
     if (!email.includes("@") || !email.includes(".")) {
       setErrorEmail("Invalid email address");
+      setLoading(false);
       return;
     }
 
     if (password.length < 6) {
       setErrorLength("Password must be at least 6 characters long");
+      setLoading(false);
       return;
     }
 
     if (password !== confirmPassword) {
       setErrorPassword("Passwords do not match");
+      setLoading(false);
       return;
     }
     
@@ -81,7 +85,7 @@ export default function SignupPage() {
 
   return (
     <div className="flex items-center justify-center h-screen bg-white text-black">
-      <div className="w-full max-w-lg bg-[#D9D9D9] p-10 rounded-xl shadow-md flex items-center justify-center flex-col gap-4">
+      <div className="w-full max-w-lg bg-[#F6F4EC] p-10 rounded-xl shadow-md flex items-center justify-center flex-col gap-4">
         
         <div className="w-full flex justify-start mb-[-12px]">
           <Link
@@ -92,7 +96,7 @@ export default function SignupPage() {
           </Link>
         </div>
 
-        <Image src="/logo_with_background.svg" alt="Logo" width={100} height={100} className="h-32 w-32"/>
+        <Image src="/logo.png" alt="Logo" width={100} height={100} className="h-32 w-32"/>
 
         <h1 className="text-2xl cursor-default mt-2">Welcome to <span className="font-bold text-center bg-gradient-to-r from-[#282D38] to-[#C19858] bg-clip-text text-transparent">ResearcHub</span></h1>
 
@@ -103,7 +107,7 @@ export default function SignupPage() {
         )}
 
         <input
-          className="py-2 px-4 rounded text-black w-full bg-white mt-2 focus:outline-none focus:ring-0"
+          className="py-2 px-4 rounded-3xl text-black w-full bg-white mt-2 focus:outline-none focus:ring-0"
           placeholder="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
@@ -190,9 +194,8 @@ export default function SignupPage() {
           {loading ? "Registering..." : "Register"}
         </button>
 
-
         <div className="cursor-default">
-          Already have an account? <Link href="/login" className="underline text-blue-600 cursor-pointer hover:opacity-70">Login</Link>
+          Already have an account? <Link href="/login" className="underline text-[#282D38] cursor-pointer hover:opacity-70">Login</Link>
         </div>
       </div>
     </div>

@@ -59,17 +59,10 @@ export default function ForumDetailPage() {
           const historyRef = doc(db, "history", user.uid, "forums", id);
 
           await runTransaction(db, async (tx) => {
+            // ---------- READS FIRST ----------
             const viewSnap = await tx.get(forumViewRef);
 
-            // 👁️ increment view ONCE
-            if (!viewSnap.exists()) {
-              tx.set(forumViewRef, { viewedAt: serverTimestamp() });
-              tx.update(forumRef, { views: increment(1) });
-            }
-
-            // 🕒 ALWAYS update history
             let authorName = "Unknown";
-
             if (forumData.authorId) {
               const userSnap = await tx.get(
                 doc(db, "users", forumData.authorId)
@@ -83,20 +76,21 @@ export default function ForumDetailPage() {
               }
             }
 
+            // ---------- WRITES AFTER ----------
+            if (!viewSnap.exists()) {
+              tx.set(forumViewRef, { viewedAt: serverTimestamp() });
+              tx.update(forumRef, { views: increment(1) });
+            }
+
             tx.set(
               historyRef,
               {
-                forumId: id,
-                forumTitle: forumData.title,
-                authorId: forumData.authorId,
-                authorName, // ✅ ALWAYS CORRECT
                 lastViewedAt: serverTimestamp(),
-                type: "forum",
               },
               { merge: true }
             );
-
           });
+
         });
       }
     });

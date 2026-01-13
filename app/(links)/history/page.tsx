@@ -5,7 +5,7 @@ import { auth, db } from "@/lib/firebase";
 import {
   collection,
   doc,
-  getDoc,
+  getDoc, 
   getDocs,
   orderBy,
   query,
@@ -63,25 +63,32 @@ export default function HistoryPage() {
 
       for (const h of forumSnap.docs) {
         const forumDoc = await getDoc(doc(db, "forums", h.id));
+        if (!forumDoc.exists()) continue;
 
-        if (forumDoc.exists()) {
-          results.push({
-            id: h.id,
-            type: "forum",
+        const forumData = forumDoc.data();
 
-            // forum structural data
-            ...forumDoc.data(),
-
-            // 🔥 DISPLAY FIELDS FROM HISTORY (NOT forum doc)
-            title: h.data().forumTitle,
-            authorId: h.data().authorId,
-            authorName: h.data().authorName,
-            lastViewedAt: h.data().lastViewedAt,
-          });
+        let authorName = "Unknown";
+        if (forumData.authorId) {
+          const userSnap = await getDoc(
+            doc(db, "users", forumData.authorId)
+          );
+          if (userSnap.exists()) {
+            authorName =
+              userSnap.data().username ||
+              userSnap.data().name ||
+              "Unknown";
+          }
         }
+
+        results.push({
+          id: h.id,
+          type: "forum",
+          lastViewedAt: h.data().lastViewedAt,
+          authorName,              // ✅ FIX
+          ...forumData,
+        });
       }
-
-
+      
       setItems(results);
       setLoading(false);
     };

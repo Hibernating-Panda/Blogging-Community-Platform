@@ -32,6 +32,8 @@ export default function PostDetail() {
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
   const [editing, setEditing] = useState<any | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userCache, setUserCache] = useState<Record<string, any>>({});
+
 
   /* ---------------- LOAD POST ---------------- */
   useEffect(() => {
@@ -81,31 +83,27 @@ export default function PostDetail() {
 
     const uid = auth.currentUser.uid;
 
-    const viewRef = doc(db, "postViews", id, "users", uid); // ✅ FIX
+    const viewRef = doc(db, "postViews", id, "users", uid);
     const historyRef = doc(db, "history", uid, "posts", id);
 
     const record = async () => {
-      const snap = await getDoc(viewRef);
-      if (snap.exists()) return;
+      // postViews (analytics)
+      await setDoc(
+        viewRef,
+        { viewedAt: serverTimestamp() },
+        { merge: true }
+      );
 
-      // mark viewed
-      await setDoc(viewRef, {
-        viewedAt: serverTimestamp(),
-      });
-
-      // increment view count
+      // increment views (allowed by new rule)
       await updateDoc(doc(db, "posts", id), {
         viewCount: increment(1),
       });
 
-      // update history (last viewed)
+      // history (always update)
       await setDoc(
         historyRef,
-        {
-          postId: id,
-          lastViewedAt: serverTimestamp(), // 🔥 use explicit field
-        },
-        { merge: true } // 🔥 IMPORTANT
+        { lastViewedAt: serverTimestamp() },
+        { merge: true }
       );
     };
 
@@ -113,7 +111,7 @@ export default function PostDetail() {
   }, [id]);
 
 
-  /* ---------------- COMMENTS (REALTIME) ---------------- */
+  /* ---------------- COMMENTS ---------------- */
   useEffect(() => {
     if (!id) return;
 
@@ -145,9 +143,7 @@ export default function PostDetail() {
     return roots;
   }
 
-  if (!post) return <p className="p-6">Loading...</p>;
-
-  const isOwner = auth.currentUser?.uid === post.authorId;
+  const isOwner = !!post && auth.currentUser?.uid === post.authorId;
 
     /* ---------------- ACTIONS ---------------- */
 
@@ -234,7 +230,7 @@ export default function PostDetail() {
       text: commentText,
       depth,
       parentId,
-      replyToName: replyingTo?.authorName || null,
+      replyToId: replyingTo?.authorId,
       createdAt: serverTimestamp(),
     });
 
@@ -320,13 +316,22 @@ export default function PostDetail() {
   const renderComment = (c: any, level = 0) => {
     const canReply = c.depth < 3;
     const isOwner = auth.currentUser?.uid === c.authorId;
+    const user = userCache[c.authorId];
+    const replyUser = userCache[c.replyToId];
 
     return (
       <div key={c.id} style={{ marginLeft: level * 20 }} className="border-l pl-3 my-3">
         <div className="flex gap-2 items-center">
-          <img src={c.authorImage} className="w-8 h-8 rounded-full" />
+
+          <img
+            src={user?.photoURL || "/profile.jpg"}
+            className="w-8 h-8 rounded-full"
+          />
+
           <div>
-            <p className="font-semibold">{c.authorName}</p>
+            <p className="font-semibold">
+              {user?.username || "User"}
+            </p>
             <p className="text-xs text-gray-500">
               {c.createdAt?.toDate?.().toLocaleString()}
               {c.editedAt && (
@@ -364,9 +369,9 @@ export default function PostDetail() {
           </>
         ) : (
           <p className="mt-2 break-words flex flex-col">
-            {c.replyToName && (
+            {replyUser && (
               <span className="text-sm text-gray-500 mr-2">
-                | Reply to <b>{c.replyToName}</b>
+                | Reply to <b>{replyUser.username}</b>
               </span>
             )}
             {c.text}
@@ -409,6 +414,43 @@ export default function PostDetail() {
       </div>
     );
   };
+
+  useEffect(() => {
+    const loadUsers = async () => {
+      const missingUserIds = comments
+        .map((c) => c.authorId)
+        .filter(
+          (uid) => uid && !userCache[uid]
+        );
+
+      if (missingUserIds.length === 0) return;
+
+      const entries = await Promise.all(
+        missingUserIds.map(async (uid) => {
+          const snap = await getDoc(doc(db, "users", uid));
+          if (!snap.exists()) return null;
+
+          return [
+            uid,
+            {
+              username: snap.data().username || "User",
+              photoURL: snap.data().photoURL || "/profile.jpg",
+            },
+          ];
+        })
+      );
+
+      setUserCache((prev) => ({
+        ...prev,
+        ...Object.fromEntries(entries.filter(Boolean) as any),
+      }));
+    };
+
+    loadUsers();
+  }, [comments]);
+
+  
+  if (!post) return <p className="p-6">Loading...</p>;
 
   /* ---------------- RENDER ---------------- */
 
