@@ -5,10 +5,10 @@ import { auth, db } from "@/lib/firebase";
 import {
   collection,
   doc,
-  getDoc, 
-  getDocs,
+  getDoc,
   orderBy,
   query,
+  onSnapshot,
 } from "firebase/firestore";
 import Link from "next/link";
 import { useSearch } from "@/context/SearchContext";
@@ -25,75 +25,81 @@ export default function HistoryPage() {
 
   const { searchText, selectedCategory } = useSearch();
 
-  /* ---------------- LOAD HISTORY ---------------- */
+  /* ---------------- LOAD HISTORY (REAL-TIME) ---------------- */
   useEffect(() => {
-    const loadHistory = async () => {
-      if (!auth.currentUser) return;
+    if (!auth.currentUser) return;
 
-      const uid = auth.currentUser.uid;
-      const results: any[] = [];
+    const uid = auth.currentUser.uid;
+    let postsReady = false;
+    let forumsReady = false;
+    let postsResults: any[] = [];
+    let forumsResults: any[] = [];
 
-      // POSTS HISTORY
-      const postSnap = await getDocs(
-        query(
-          collection(db, "history", uid, "posts"),
-          orderBy("lastViewedAt", "desc")
-        )
-      );
+    const finish = () => {
+      setItems([...postsResults, ...forumsResults]);
+      if (postsReady && forumsReady) setLoading(false);
+    };
 
-      for (const h of postSnap.docs) {
-        const postDoc = await getDoc(doc(db, "posts", h.id));
-        if (postDoc.exists()) {
-          results.push({
+    const postsQ = query(
+      collection(db, "history", uid, "posts"),
+      orderBy("lastViewedAt", "desc")
+    );
+    const unsubPosts = onSnapshot(postsQ, async (snap) => {
+      const list = await Promise.all(
+        snap.docs.map(async (h) => {
+          const postDoc = await getDoc(doc(db, "posts", h.id));
+          if (!postDoc.exists()) return null;
+          return {
             id: h.id,
             type: "post",
             lastViewedAt: h.data().lastViewedAt,
             ...postDoc.data(),
-          });
-        }
-      }
-
-      // FORUM HISTORY
-      const forumSnap = await getDocs(
-        query(
-          collection(db, "history", uid, "forums"),
-          orderBy("lastViewedAt", "desc")
-        )
+          };
+        })
       );
+      postsResults = list.filter(Boolean) as any[];
+      postsReady = true;
+      finish();
+    });
 
-      for (const h of forumSnap.docs) {
-        const forumDoc = await getDoc(doc(db, "forums", h.id));
-        if (!forumDoc.exists()) continue;
+    const forumsQ = query(
+      collection(db, "history", uid, "forums"),
+      orderBy("lastViewedAt", "desc")
+    );
+    const unsubForums = onSnapshot(forumsQ, async (snap) => {
+      const list = await Promise.all(
+        snap.docs.map(async (h) => {
+          const forumDoc = await getDoc(doc(db, "forums", h.id));
+          if (!forumDoc.exists()) return null;
+          const forumData = forumDoc.data();
 
-        const forumData = forumDoc.data();
-
-        let authorName = "Unknown";
-        if (forumData.authorId) {
-          const userSnap = await getDoc(
-            doc(db, "users", forumData.authorId)
-          );
-          if (userSnap.exists()) {
-            authorName =
-              userSnap.data().username ||
-              userSnap.data().name ||
-              "Unknown";
+          let authorName = "Unknown";
+          if (forumData.authorId) {
+            const userSnap = await getDoc(doc(db, "users", forumData.authorId));
+            if (userSnap.exists()) {
+              authorName =
+                userSnap.data().username || userSnap.data().name || "Unknown";
+            }
           }
-        }
 
-        results.push({
-          id: h.id,
-          type: "forum",
-          lastViewedAt: h.data().lastViewedAt,
-          authorName,              // ✅ FIX
-          ...forumData,
-        });
-      }
-      
-      setItems(results);
-      setLoading(false);
+          return {
+            id: h.id,
+            type: "forum",
+            lastViewedAt: h.data().lastViewedAt,
+            authorName,
+            ...forumData,
+          };
+        })
+      );
+      forumsResults = list.filter(Boolean) as any[];
+      forumsReady = true;
+      finish();
+    });
+
+    return () => {
+      unsubPosts();
+      unsubForums();
     };
-
-    loadHistory();
   }, []);
 
   /* ---------------- FILTER + SORT ---------------- */

@@ -60,6 +60,8 @@ export default function CommunityPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [showDeleteCommunity, setShowDeleteCommunity] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   /* ---------- HELPERS ---------- */
 
@@ -177,6 +179,11 @@ export default function CommunityPage() {
     );
   }, [messages.length, id, uid]);
 
+  useEffect(() => {
+    const close = () => setActiveMessageId(null);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, []);
 
   /* ---------- SEND MESSAGE ---------- */
 
@@ -329,13 +336,21 @@ export default function CommunityPage() {
                   </div>
                 )}
 
-                <div className="flex gap-3 group">
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveMessageId(
+                      activeMessageId === m.id ? null : m.id
+                    );
+                  }}
+                  className="flex gap-3 group cursor-pointer w-fit"
+                >
                   <img
                     src={m.authorImage}
                     className="w-10 h-10 rounded-full"
                   />
 
-                  <div className="bg-white p-3 rounded-lg shadow max-w-xl relative cursor-default">
+                  <div className="bg-white p-3 rounded-lg shadow max-w-xl relative">
                     <p className="font-semibold text-sm">
                       {m.authorName}
                     </p>
@@ -355,33 +370,52 @@ export default function CommunityPage() {
                       <span>{formatTime(m.createdAt)}</span>
                     </div>
 
-                    <div className="absolute -right-25 top-1 hidden group-hover:flex gap-1 text-xs">
-                      <button className="cursor-pointer" onClick={() => setReplyTo(m)}>Reply</button>
+                    {activeMessageId === m.id && (
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute -right-13 top-0 flex flex-col gap-1
+                                  text-xs bg-white border border-gray-200 rounded shadow z-50"
+                      >
+                        <button
+                          className="cursor-pointer text-blue-600 bg-white hover:bg-blue-600 hover:text-white transition-colors px-2 py-1"
+                          onClick={() => {
+                            setReplyTo(m);
+                            setActiveMessageId(null);
+                          }}
+                        >
+                          Reply
+                        </button>
+                        {(m.authorId === uid || isAdmin) && (
+                          <>
+                            {m.authorId === uid && (
+                              <button
+                                className="cursor-pointer px-2 py-1 text-green-600 bg-white hover:bg-green-600 hover:text-white transition-colors"
+                                onClick={() => {
+                                  setEditingMessage(m);
+                                  setText(m.text);
+                                  setActiveMessageId(null);
+                                }}
+                              >
+                                Edit
+                              </button>
+                            )}
 
-                      {(m.authorId === uid || isAdmin) && (
-                        <div className="flex gap-2 text-xs text-gray-400">
-                          {m.authorId === uid && (
                             <button
-                              className="cursor-pointer"
                               onClick={() => {
-                                setEditingMessage(m);
-                                setText(m.text);
+                                setDeleteTarget(m);
+                                setActiveMessageId(null);
                               }}
+                              className="text-red-500 cursor-pointer px-2 py-1 hover:bg-red-500 hover:text-white transition-colors"
                             >
-                              Edit
+                              Delete
                             </button>
-                          )}
+                          </>
+                        )}
 
-                          <button
-                            onClick={() => setDeleteTarget(m)}
-                            className="text-red-500 cursor-pointer"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      )}
+                      </div>
+                    )}
 
-                    </div>
+
                   </div>
                 </div>
               </div>
@@ -404,7 +438,7 @@ export default function CommunityPage() {
             <div className="text-xs text-blue-600 mb-1">
               Editing message
               <button
-                className="ml-2 text-red-500"
+                className="ml-2 text-red-500 cursor-pointer"
                 onClick={() => {
                   setEditingMessage(null);
                   setText("");
@@ -415,16 +449,36 @@ export default function CommunityPage() {
             </div>
           )}
 
-          <div className="flex gap-3">
-            <input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Write a message..."
-              className="flex-1 border rounded-xl px-4 py-2 border-[#D6D6D6]"
-            />
+          <div className="flex gap-3 items-center">
+          <textarea
+            ref={textareaRef}
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value);
+              if (textareaRef.current) {
+                textareaRef.current.style.height = "auto";
+                textareaRef.current.style.height =
+                  textareaRef.current.scrollHeight + "px";
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+                if (textareaRef.current) {
+                  textareaRef.current.style.height = "auto";
+                }
+              }
+            }}
+            placeholder="Write a message..."
+            rows={1}
+            className="flex-1 border rounded-xl px-4 py-2 border-[#D6D6D6]
+                      resize-none overflow-hidden"
+          />
+
             <button
               onClick={sendMessage}
-              className="bg-blue-600 text-white px-4 py-2 rounded-xl cursor-pointer"
+              className="bg-blue-600 text-white px-4 py-2 rounded-xl cursor-pointer h-fit"
             >
               {editingMessage ? "Save" : "Send"}
             </button>
@@ -442,14 +496,14 @@ export default function CommunityPage() {
 
             <div className="flex justify-end gap-2">
               <button
-                className="px-4 py-2 rounded border"
+                className="px-4 py-2 rounded border cursor-pointer hover:bg-gray-100"
                 onClick={() => setDeleteTarget(null)}
               >
                 Cancel
               </button>
 
               <button
-                className="px-4 py-2 rounded bg-red-600 text-white"
+                className="px-4 py-2 rounded bg-red-600 text-white cursor-pointer hover:bg-red-700"
                 onClick={async () => {
                   await deleteDoc(
                     doc(

@@ -29,6 +29,7 @@ export default function JoinCommunityPage() {
   const [joinedIds, setJoinedIds] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [alreadyJoined, setAlreadyJoined] = useState<Community | null>(null);
+  const [joiningId, setJoiningId] = useState<string | null>(null);
 
   const [selected, setSelected] = useState<Community | null>(null);
 
@@ -84,13 +85,13 @@ export default function JoinCommunityPage() {
   const joinCommunity = async (community: Community) => {
     if (!uid) return;
 
-    // If already joined, show modal and do nothing
     if (joinedIds.includes(community.id)) {
       setAlreadyJoined(community);
       return;
     }
 
-    setLoading(true);
+    setJoiningId(community.id);
+
     try {
       await setDoc(doc(db, "communities", community.id, "members", uid), {
         role: "member",
@@ -106,14 +107,12 @@ export default function JoinCommunityPage() {
       });
 
       setJoinedIds((prev) => [...prev, community.id]);
-      setSelected(null);
-
-      // Navigate to the community after successful join
       window.location.href = `/communities/${community.id}`;
     } finally {
-      setLoading(false);
+      setJoiningId(null);
     }
   };
+
 
   /* ---------------- JOIN PRIVATE ---------------- */
   const joinPrivate = async () => {
@@ -298,15 +297,22 @@ export default function JoinCommunityPage() {
               </button>
 
               <button
-                disabled={joinedIds.includes(selected.id)}
+                disabled={
+                  joinedIds.includes(selected.id) ||
+                  joiningId === selected.id
+                }
                 onClick={() => joinCommunity(selected)}
                 className={`px-4 py-2 rounded text-white ${
-                  joinedIds.includes(selected.id)
+                  joinedIds.includes(selected.id) || joiningId === selected.id
                     ? "bg-gray-400 cursor-not-allowed"
                     : "bg-blue-600 cursor-pointer"
                 }`}
               >
-                {joinedIds.includes(selected.id) ? "Joined" : "Join"}
+                {joiningId === selected.id
+                  ? "Joining..."
+                  : joinedIds.includes(selected.id)
+                  ? "Joined"
+                  : "Join"}
               </button>
             </div>
           </div>

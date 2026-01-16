@@ -48,7 +48,7 @@ export default function PostCard({ userOnly = false, userId = null }: PostCardPr
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const uid = auth.currentUser?.uid;
+  const uid = auth.currentUser?.uid; 
   const { searchText, selectedCategory } = useSearch();
 
   useEffect(() => {
@@ -109,6 +109,7 @@ export default function PostCard({ userOnly = false, userId = null }: PostCardPr
           id: post.id,
           title: post.title,
           summary: post.summary,
+          commentCount: post.commentCount || 0,
 
           coverImageUrl: post.coverImageUrl || "",
 
@@ -158,10 +159,8 @@ export default function PostCard({ userOnly = false, userId = null }: PostCardPr
       const res = await fetch(`/api/posts/${postId}/like`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ value: 1 }),
       });
 
       const json = await res.json();
@@ -234,6 +233,7 @@ export default function PostCard({ userOnly = false, userId = null }: PostCardPr
 
             createdAt: post.createdAt,
             likeCount: post.likeCount || 0,
+            commentCount: post.commentCount || 0,
 
             userLiked,
             isFavorited,
@@ -271,18 +271,14 @@ export default function PostCard({ userOnly = false, userId = null }: PostCardPr
       const data = await res.json();
 
       setPosts((curr) =>
-        curr.map((p) => {
-          if (p.id !== postId) return p;
-
-          return {
-            ...p,
-            userLiked: data.value === 1,
-            likeCount:
-              typeof data.likeCount === "number"
-                ? data.likeCount
-                : p.likeCount + (data.value === 1 ? 1 : -1),
-          };
-        })
+        curr.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                isFavorited: !!data.favorited,
+              }
+            : p
+        )
       );
 
     } catch (err) {
@@ -506,7 +502,7 @@ export default function PostCard({ userOnly = false, userId = null }: PostCardPr
                   </button>
 
                   {/* COMMENT COUNT */}
-                  <div className="flex gap-2 items-center">
+                  <Link href={`/post/${post.id}`} className="flex gap-2 items-center">
                     <Image
                       src="/comment-solid.svg"
                       width={24}
@@ -514,7 +510,7 @@ export default function PostCard({ userOnly = false, userId = null }: PostCardPr
                       alt="comment"
                     />
                     {post.commentCount || 0}
-                  </div>
+                  </Link>
 
                   {/* FAVORITE BUTTON */}
                   <button

@@ -19,6 +19,7 @@ import {
 import { onAuthStateChanged } from "firebase/auth";
 import { db, auth } from "@/lib/firebase";
 import { PRESET_CATEGORIES } from "@/types/firestore";
+import { useRef } from "react";
 
 type SortType = "newest" | "oldest" | "mostReplies";
 
@@ -31,6 +32,8 @@ export default function ForumDetailPage() {
   const [replyTo, setReplyTo] = useState<any | null>(null);
   const [editing, setEditing] = useState<any | null>(null);
   const [sort, setSort] = useState<SortType>("newest");
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const [authorUsername, setAuthorUsername] = useState("Unknown");
 
   /* ---------------- REALTIME FORUM + ANSWERS ---------------- */
   useEffect(() => {
@@ -54,7 +57,7 @@ export default function ForumDetailPage() {
       if (!unsubAuth) {
         unsubAuth = onAuthStateChanged(auth, async (user) => {
           if (!user) return;
-
+ 
           const forumViewRef = doc(db, "forumViews", id, "users", user.uid);
           const historyRef = doc(db, "history", user.uid, "forums", id);
 
@@ -110,6 +113,25 @@ export default function ForumDetailPage() {
       if (unsubAuth) unsubAuth();
     };
   }, [id]);
+
+  useEffect(() => {
+    if (!forum?.authorId) return;
+
+    const loadAuthor = async () => {
+      const snap = await getDoc(
+        doc(db, "users", forum.authorId)
+      );
+
+      if (snap.exists()) {
+        setAuthorUsername(
+          snap.data().username || "Unknown"
+        );
+      }
+    };
+
+    loadAuthor();
+  }, [forum?.authorId]);
+
 
 
   /* ---------------- ANSWER TREE ---------------- */
@@ -196,14 +218,30 @@ export default function ForumDetailPage() {
         {isEditingThis ? (
           <>
             <textarea
-              className="w-full p-2 rounded mt-2"
+              ref={ref}
               value={editing.text}
-              onChange={(e) =>
-                setEditing({ ...editing, text: e.target.value })
-              }
+              onChange={(e) => {
+                setEditing({ ...editing, text: e.target.value });
+
+                if (ref.current) {
+                  ref.current.style.height = "auto";
+                  ref.current.style.height = ref.current.scrollHeight + "px";
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  saveEdit();
+                  if (ref.current) ref.current.style.height = "auto";
+                }
+              }}
+              rows={1}
+              className="resize-none overflow-hidden w-full border rounded-lg p-3
+                        min-h-[100px] max-h-[300px] focus:outline-none focus:ring-2
+                        focus:ring-blue-500 focus:border-transparent"
             />
 
-            <div className="flex gap-3 mt-2 text-sm">
+            <div className="flex gap-3 text-sm">
               <button className="text-blue-600" onClick={saveEdit}>
                 Save
               </button>
@@ -224,7 +262,7 @@ export default function ForumDetailPage() {
           <div className="flex gap-4 mt-2 text-sm">
             {a.depth < 3 && (
               <button
-                className={isReplyingThis ? "text-red-600" : "text-blue-600"}
+                className={isReplyingThis ? "text-red-600 cursor-pointer" : "text-blue-600 cursor-pointer"}
                 onClick={() =>
                   isReplyingThis ? setReplyTo(null) : setReplyTo(a)
                 }
@@ -236,13 +274,13 @@ export default function ForumDetailPage() {
             {!isReplyingThis && isOwner && (
               <>
                 <button
-                  className="text-green-600"
+                  className="text-green-600 cursor-pointer"
                   onClick={() => setEditing(a)}
                 >
                   Edit
                 </button>
                 <button
-                  className="text-red-600"
+                  className="text-red-600 cursor-pointer"
                   onClick={() => deleteAnswer(a.id)}
                 >
                   Delete
@@ -372,7 +410,7 @@ export default function ForumDetailPage() {
       <div className="flex-1 overflow-y-auto p-6 space-y-4 hide-scrollbar">
       <h1 className="text-2xl font-semibold">{forum.title}</h1>
       <h2 className="text-sm text-gray-600">
-        Author: {forum.authorName} ·{" "}
+        Author: {authorUsername} ·{" "}
         {forum.createdAt
           ? new Date(forum.createdAt.seconds * 1000).toLocaleString()
           : ""}
@@ -407,13 +445,28 @@ export default function ForumDetailPage() {
       {/* INPUT */}
       <div className="flex gap-3 items-center sticky border-t border-gray-200 bottom-0 left-0 right-0 bg-gray-100 p-6 z-10">
         <textarea
-          className="w-full border p-3 rounded resize-none"
-          placeholder={
-            replyTo ? `Replying to ${replyTo.authorName}` : "Write your answer..."
-          }
+          ref={ref}
           value={answerText}
-          onChange={(e) => setAnswerText(e.target.value)}
+          onChange={(e) => {
+            setAnswerText(e.target.value);
+            if (ref.current) {
+              ref.current.style.height = "auto";
+              ref.current.style.height = ref.current.scrollHeight + "px";
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              submitAnswer(replyTo?.id || null);
+              if (ref.current) ref.current.style.height = "auto";
+            }
+          }}
+          rows={1}
+          className="resize-none overflow-hidden w-full border rounded-lg p-3
+                        min-h-[100px] max-h-[200px] focus:outline-none focus:ring-2
+                        focus:ring-blue-500 focus:border-transparent"
         />
+
 
         <button
           onClick={() => submitAnswer(replyTo?.id || null)}
@@ -425,3 +478,4 @@ export default function ForumDetailPage() {
     </div>
   );
 }
+

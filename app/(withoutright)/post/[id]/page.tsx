@@ -16,7 +16,7 @@ import {
   addDoc,
 } from "firebase/firestore";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -33,9 +33,10 @@ export default function PostDetail() {
   const [editing, setEditing] = useState<any | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userCache, setUserCache] = useState<Record<string, any>>({});
-
+  const commentRef = useRef<HTMLTextAreaElement>(null);
 
   /* ---------------- LOAD POST ---------------- */
+
   useEffect(() => {
     if (!id) return;
 
@@ -140,7 +141,7 @@ export default function PostDetail() {
       }
     });
 
-    return roots;
+    return roots; 
   }
 
   const isOwner = !!post && auth.currentUser?.uid === post.authorId;
@@ -223,16 +224,26 @@ export default function PostDetail() {
       }
     }
 
-    await setDoc(doc(db, "comments", id, "items", newId), {
+    const data: any = {
       authorId: uid,
       authorName: user.username || "User",
       authorImage: user.photoURL || "/profile.jpg",
       text: commentText,
       depth,
-      parentId,
-      replyToId: replyingTo?.authorId,
       createdAt: serverTimestamp(),
-    });
+    };
+
+    // add parentId ONLY if exists
+    if (parentId) {
+      data.parentId = parentId;
+    }
+
+    // add replyToId ONLY if replying
+    if (replyingTo) {
+      data.replyToId = replyingTo.authorId;
+    }
+
+    await setDoc(doc(db, "comments", id, "items", newId), data);
 
     // 🔥 INCREMENT COMMENT COUNT (reply counts too)
     await updateDoc(doc(db, "posts", id), {
@@ -344,12 +355,30 @@ export default function PostDetail() {
         {editing?.id === c.id ? (
           <>
             <textarea
-              className="w-full border p-2 rounded mt-2 resize-none"
-              value={editing.text}
-              onChange={(e) =>
-                setEditing({ ...editing, text: e.target.value })
-              }
+              ref={commentRef}
+              className="w-full border p-2 rounded resize-none overflow-hidden"
+              value={commentText}
+              onChange={(e) => {
+                setCommentText(e.target.value);
+                if (commentRef.current) {
+                  commentRef.current.style.height = "auto";
+                  commentRef.current.style.height =
+                    commentRef.current.scrollHeight + "px";
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  saveEditComment();
+                  if (commentRef.current) {
+                    commentRef.current.style.height = "auto";
+                  }
+                }
+              }}
+              placeholder="Write a comment..."
+              rows={1}
             />
+
 
             <div className="flex gap-3 mt-2 text-sm">
               <button
@@ -557,11 +586,30 @@ export default function PostDetail() {
           )}
 
           <textarea
-            className="w-full border p-2 rounded resize-none"
+            ref={commentRef}
+            className="w-full border p-2 rounded resize-none overflow-hidden"
             value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
+            onChange={(e) => {
+              setCommentText(e.target.value);
+              if (commentRef.current) {
+                commentRef.current.style.height = "auto";
+                commentRef.current.style.height =
+                  commentRef.current.scrollHeight + "px";
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                submitComment();
+                if (commentRef.current) {
+                  commentRef.current.style.height = "auto";
+                }
+              }
+            }}
             placeholder="Write a comment..."
+            rows={1}
           />
+
 
           <button
             onClick={submitComment}

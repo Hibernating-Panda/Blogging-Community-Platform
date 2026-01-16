@@ -7,8 +7,8 @@ import {
   query,
   orderBy,
   limit,
-  getDocs,
   where,
+  onSnapshot,
 } from "firebase/firestore";
 import Link from "next/link";
 
@@ -19,51 +19,59 @@ export default function RightBar() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadAll = async () => {
-      try {
-        /* ---------- TOP POSTS ---------- */
-        const postSnap = await getDocs(
-          query(
-            collection(db, "posts"),
-            orderBy("likeCount", "desc"),
-            limit(3)
-          )
-        );
+    let postsReady = false;
+    let forumsReady = false;
+    let communitiesReady = false;
 
-        setPosts(postSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-
-        /* ---------- TOP FORUMS ---------- */
-        const forumSnap = await getDocs(
-          query(
-            collection(db, "forums"),
-            orderBy("answersCount", "desc"),
-            limit(3)
-          )
-        );
-
-        setForums(forumSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-
-        /* ---------- TOP PUBLIC COMMUNITIES ---------- */
-        const communitySnap = await getDocs(
-          query(
-            collection(db, "communities"),
-            where("visibility", "==", "public"),
-            limit(50)
-          )
-        );
-
-        const topPublic = communitySnap.docs
-          .map((d) => ({ id: d.id, ...d.data() }))
-          .sort((a: any, b: any) => (b.memberCount || 0) - (a.memberCount || 0))
-          .slice(0, 3);
-
-        setCommunities(topPublic);
-      } finally {
-        setLoading(false);
-      }
+    const finishIfReady = () => {
+      if (postsReady && forumsReady && communitiesReady) setLoading(false);
     };
 
-    loadAll();
+    /* ---------- TOP POSTS (real-time) ---------- */
+    const postsQuery = query(
+      collection(db, "posts"),
+      orderBy("likeCount", "desc"),
+      limit(3)
+    );
+    const unsubPosts = onSnapshot(postsQuery, (snap) => {
+      setPosts(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      postsReady = true;
+      finishIfReady();
+    });
+
+    /* ---------- TOP FORUMS (real-time) ---------- */
+    const forumsQuery = query(
+      collection(db, "forums"),
+      orderBy("answersCount", "desc"),
+      limit(3)
+    );
+    const unsubForums = onSnapshot(forumsQuery, (snap) => {
+      setForums(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      forumsReady = true;
+      finishIfReady();
+    });
+
+    /* ---------- TOP PUBLIC COMMUNITIES (real-time) ---------- */
+    const communitiesQuery = query(
+      collection(db, "communities"),
+      where("visibility", "==", "public"),
+      limit(50)
+    );
+    const unsubCommunities = onSnapshot(communitiesQuery, (snap) => {
+      const topPublic = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a: any, b: any) => (b.memberCount || 0) - (a.memberCount || 0))
+        .slice(0, 3);
+      setCommunities(topPublic);
+      communitiesReady = true;
+      finishIfReady();
+    });
+
+    return () => {
+      unsubPosts();
+      unsubForums();
+      unsubCommunities();
+    };
   }, []);
 
   if (loading) {

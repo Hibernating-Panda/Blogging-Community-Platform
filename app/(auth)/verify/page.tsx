@@ -9,6 +9,7 @@ export default function VerifyEmailPage() {
   );
   const [errorMsg, setErrorMsg] = useState("");
   const [cooldown, setCooldown] = useState(0);
+  const [email, setEmail] = useState<string | null>(null);
 
   // Smooth auto redirect when verified
   useEffect(() => {
@@ -22,12 +23,28 @@ export default function VerifyEmailPage() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user?.email) {
+        setEmail(user.email);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   // Cooldown countdown
   useEffect(() => {
     if (cooldown <= 0) return;
     const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
     return () => clearTimeout(timer);
   }, [cooldown]);
+
+  const maskEmail = (email: string) => {
+    const [name, domain] = email.split("@");
+    return `${name.slice(0, 2)}***@${domain}`;
+  };
+
 
   const resendEmail = async () => {
     if (!auth.currentUser) return;
@@ -65,11 +82,12 @@ export default function VerifyEmailPage() {
         <p className="text-sm text-gray-600 mb-4">
           We've sent a verification link to
         </p>
-        {auth.currentUser?.email && auth.currentUser.email.length > 0 ? (
+        
+        {email && (
           <p className="font-semibold mb-6 bg-gray-100 p-2 rounded text-center">
-            {auth.currentUser.email}
+            {maskEmail(email)}
           </p>
-        ) : null}
+        )}
 
         <button
           onClick={resendEmail}

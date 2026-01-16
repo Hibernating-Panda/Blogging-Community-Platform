@@ -197,7 +197,7 @@ export default function CommunitySidebar() {
             <button
               key={c.id}
               onClick={() => router.push(`/communities/${c.id}`)}
-              className={`flex items-center gap-3 px-2 py-2 rounded text-left ${
+              className={`flex items-center gap-3 px-2 py-2 rounded text-left cursor-pointer ${
                 active ? "bg-[#6B7280] text-white" : "hover:bg-gray-100"
               }`}
             >

@@ -13,6 +13,7 @@ import {
 import { db } from "@/lib/firebase";
 import QuestionItem from "@/components/QuestionItem";
 import { useSearch } from "@/context/SearchContext";
+import RightBar from "@/components/rightbar";
 
 type SortType = "newest" | "active" | "unanswered";
 
@@ -90,8 +91,8 @@ export default function ForumPage() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50 cursor-default">
-      <div className="w-3/4 px-10 py-6">
+    <div className="min-h-screen h-full bg-gray-50 cursor-default flex">
+      <div className="w-3/4 px-10 py-6 h-full">
 
         {/* HEADER */}
         <div className="flex justify-between items-center mb-6">
@@ -102,8 +103,8 @@ export default function ForumPage() {
               onClick={() => setSort("newest")}
               className={`px-4 py-2 cursor-pointer ${
                 sort === "newest"
-                  ? "bg-gray-200 font-medium"
-                  : "hover:bg-gray-100"
+                  ? "bg-black text-white font-medium"
+                  : "hover:bg-gray-500"
               }`}
             >
               Newest
@@ -113,8 +114,8 @@ export default function ForumPage() {
               onClick={() => setSort("active")}
               className={`px-4 py-2 cursor-pointer ${
                 sort === "active"
-                  ? "bg-gray-200 font-medium"
-                  : "hover:bg-gray-100"
+                  ? "bg-black text-white font-medium"
+                  : "hover:bg-gray-500"
               }`}
             >
               Active
@@ -124,8 +125,8 @@ export default function ForumPage() {
               onClick={() => setSort("unanswered")}
               className={`px-4 py-2 cursor-pointer ${
                 sort === "unanswered"
-                  ? "bg-gray-200 font-medium"
-                  : "hover:bg-gray-100"
+                  ? "bg-black text-white font-medium"
+                  : "hover:bg-gray-500"
               }`}
             >
               Unanswered
@@ -163,6 +164,9 @@ export default function ForumPage() {
             />
           ))}
         </div>
+      </div>
+      <div className="w-1/4 border-l bg-white border-[#D9D9D9]">
+        <RightBar />
       </div>
     </div>
   );

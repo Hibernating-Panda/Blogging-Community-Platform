@@ -6,7 +6,7 @@ import {
   collection,
   doc,
   getDoc,
-  getDocs,
+  onSnapshot,
 } from "firebase/firestore";
 import Link from "next/link";
 import { useSearch } from "@/context/SearchContext";
@@ -23,35 +23,32 @@ export default function FavoritesPage() {
   useEffect(() => {
     if (!uid) return;
 
-    const loadFavorites = async () => {
-      setLoading(true);
+    setLoading(true);
 
-      // Get list of favorite post IDs
-      const favSnap = await getDocs(collection(db, "favorites", uid, "posts"));
+    const unsub = onSnapshot(
+      collection(db, "favorites", uid, "posts"),
+      async (snap) => {
+        const favPosts = await Promise.all(
+          snap.docs.map(async (fav) => {
+            const postId = fav.id;
+            const favData = fav.data();
+            const postSnap = await getDoc(doc(db, "posts", postId));
+            if (!postSnap.exists()) return null;
+            const post = postSnap.data();
+            return {
+              id: postId,
+              ...post,
+              favoritedAt: favData.favoritedAt || null,
+            };
+          })
+        );
 
-      const favPosts: any[] = [];
-
-      for (const fav of favSnap.docs) {
-        const postId = fav.id;
-        const favData = fav.data();
-
-        const postSnap = await getDoc(doc(db, "posts", postId));
-        if (postSnap.exists()) {
-          const post = postSnap.data();
-
-          favPosts.push({
-            id: postId,
-            ...post,
-            favoritedAt: favData.favoritedAt || null,
-          });
-        }
+        setFavorites(favPosts.filter(Boolean) as any[]);
+        setLoading(false);
       }
+    );
 
-      setFavorites(favPosts);
-      setLoading(false);
-    };
-
-    loadFavorites();
+    return () => unsub();
   }, [uid]);
 
   const { searchText, selectedCategory } = useSearch();
@@ -102,7 +99,7 @@ export default function FavoritesPage() {
                   className="w-32 h-20 object-cover rounded"
                   alt="cover"
                 />
-              )}
+              )} 
 
               <div className="flex flex-col justify-between">
                 <h2 className="text-xl font-semibold">{post.title}</h2>
