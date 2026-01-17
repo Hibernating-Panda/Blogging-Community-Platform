@@ -82,7 +82,7 @@ export default function SignupPage() {
       setLoading(false);
     }
   };
-
+ 
   return (
     <div className="flex items-center justify-center h-screen bg-white text-black">
       <div className="w-full max-w-lg bg-[#F6F4EC] p-10 rounded-xl shadow-md flex items-center justify-center flex-col gap-4">
