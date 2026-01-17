@@ -210,7 +210,7 @@ export default function UserNavbar() {
         {notifOpen && (
           <div className="fixed right-20 top-12 bg-white rounded-lg shadow-lg z-50 h-80 overflow-y-auto hide-scrollbar"
             onMouseDown={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center px-4 py-2 border-b sticky top-0 bg-white w-60">
+            <div className="flex justify-between items-center px-4 py-2 border-b sticky top-0 bg-white w-80">
               <h3 className="font-semibold">Notifications</h3>
               <button onClick={() => setNotifOpen(false)} className="text-gray-500 hover:text-gray-700 cursor-pointer">
                 ✕

@@ -95,20 +95,28 @@ export default function ProfilePage() {
       const user = auth.currentUser;
       if (!user) return;
 
-      const memSnap = await getDocs(collection(db, "users", user.uid, "communities"));
+      const memSnap = await getDocs(
+        collection(db, "users", user.uid, "communities")
+      );
+
       const list: any[] = [];
+
       for (const d of memSnap.docs) {
         const cSnap = await getDoc(doc(db, "communities", d.id));
         if (cSnap.exists()) {
-          const data: any = { id: cSnap.id, ...cSnap.data() } as any;
-          if (data.visibility === "public") list.push(data);
+          list.push({
+            id: cSnap.id,
+            ...cSnap.data(),
+          });
         }
       }
+
       setPublicCommunities(list);
     };
 
     loadCommunities();
   }, []);
+
 
   const handlePhotoChange = (file: File | null) => {
     if (!file) return;
@@ -300,18 +308,40 @@ export default function ProfilePage() {
           ) : (
             <ul className="space-y-2">
               {publicCommunities.map((c) => (
-                <a href={`/communities/${c.id}`} key={c.id} className="flex items-center gap-2 hover:bg-gray-100 p-2 rounded">
-                  {c.profileImage ? (
-                    <img src={c.profileImage} className="w-8 h-8 rounded-full object-cover" />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-xs text-white">
-                      {String(c.name || "?").charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <div className="text-md">{c.name}</div>
+                <a
+                  href={`/communities/${c.id}`}
+                  key={c.id}
+                  className="flex items-center justify-between hover:bg-gray-100 p-2 rounded"
+                >
+                  <div className="flex items-center gap-2">
+                    {c.profileImage ? (
+                      <img
+                        src={c.profileImage}
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-xs text-white">
+                        {String(c.name || "?").charAt(0).toUpperCase()}
+                      </div>
+                    )}
+
+                    <div className="text-md font-medium">{c.name}</div>
+                  </div>
+
+                  {/* VISIBILITY BADGE */}
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                      c.visibility === "private"
+                        ? "bg-gray-200 text-gray-700"
+                        : "bg-green-100 text-green-700"
+                    }`}
+                  >
+                    {c.visibility === "private" ? "Private" : "Public"}
+                  </span>
                 </a>
               ))}
             </ul>
+
           )}
         </aside>
       </div>
